@@ -1,36 +1,75 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# CashSaaS
 
-## Getting Started
+Un SaaS qui génère, pour chaque client, une idée de business taillée pour lui, le
+code prêt à déployer sur ses propres comptes, et un plan d'accompagnement de 30
+jours — vendu en abonnement mensuel résiliable à 3 paliers (Starter / Pro /
+Premium).
 
-First, run the development server:
+Stack : Next.js 16 (App Router) + Tailwind v4, Supabase (auth + DB), Stripe
+(abonnements + webhooks), Claude API (génération).
+
+## 1. Comptes à créer avant de lancer
+
+- **Anthropic** — [console.anthropic.com](https://console.anthropic.com) → une clé API
+- **Supabase** — un projet → URL, clé anon, clé service role
+- **Stripe** — un compte (mode test d'abord) → clé secrète, clé publique, secret de
+  webhook, et 3 produits d'abonnement récurrents (Starter/Pro/Premium) → un Price ID
+  par palier
+- **GitHub** — un repo "template" (public, `Template repository` activé dans ses
+  Settings) contenant le scaffold que chaque client duplique
+- **Vercel** — pour héberger ce site
+- **Un nom de domaine** (OVH, Namecheap, ...)
+
+## 2. Configuration
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+cp .env.example .env.local
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Renseigne toutes les variables (voir `.env.example`). Sans elles, l'app démarre et
+se construit, mais l'auth, le paiement et la génération échoueront proprement (le
+message d'erreur s'affiche dans l'UI).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## 3. Base de données
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Exécute `supabase/migrations/0001_init.sql` dans le SQL Editor de ton projet
+Supabase (ou `supabase db push` si tu utilises la CLI). Ça crée :
 
-## Learn More
+- `profiles` — un enregistrement par utilisateur (créé automatiquement à l'inscription)
+- `questionnaire_responses` — les 26 réponses en JSON
+- `generations` — idée + code + plan générés
+- `regenerations_usage` — compteur mensuel pour plafonner les régénérations par palier
 
-To learn more about Next.js, take a look at the following resources:
+RLS est activé partout ; chacun ne voit que ses propres lignes. Le webhook Stripe
+et la génération passent par `SUPABASE_SERVICE_ROLE_KEY`, qui contourne RLS.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## 4. Lancer en local
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```bash
+npm install
+npm run dev
+```
 
-## Deploy on Vercel
+Pour tester le webhook Stripe en local :
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```bash
+stripe listen --forward-to localhost:3000/api/webhooks/stripe
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## 5. Parcours
+
+`/` (landing) → `/signup` ou `/login` → `/questionnaire` (26 questions, 4 blocs) →
+`/pricing` (choix du palier, Stripe Checkout) → webhook Stripe déclenche la
+génération IA (Haiku/Sonnet/Opus selon le palier) → `/dashboard` (idée, code,
+plan des 30 jours, étapes de déploiement guidé sur les comptes du client).
+
+## Structure
+
+```
+src/
+  app/            routes (App Router) : landing, auth, questionnaire, pricing, dashboard, API
+  components/      UI partagée
+  lib/             clients Supabase/Stripe/Anthropic, config des paliers, données du questionnaire
+  proxy.ts         protège /dashboard, /questionnaire, /pricing (auth requise)
+supabase/migrations/  schéma SQL
+```
