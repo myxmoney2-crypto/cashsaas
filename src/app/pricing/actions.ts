@@ -2,7 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { stripe } from "@/lib/stripe";
+import { getStripe } from "@/lib/stripe";
 import { TIERS } from "@/lib/tiers";
 import type { Tier } from "@/lib/types";
 
@@ -32,6 +32,7 @@ export async function createCheckoutSession(formData: FormData) {
     .single();
 
   let customerId = profile?.stripe_customer_id ?? undefined;
+  const stripe = getStripe();
 
   if (!customerId) {
     const customer = await stripe.customers.create({

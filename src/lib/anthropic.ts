@@ -3,7 +3,26 @@ import type { QuestionnaireAnswers, GenerationResult, Tier } from "./types";
 import { TIERS } from "./tiers";
 import { QUESTIONS } from "./questionnaire";
 
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! });
+let cached: Anthropic | null = null;
+
+/**
+ * Construit le client Anthropic à la demande plutôt qu'au chargement du
+ * module, pour que l'absence d'ANTHROPIC_API_KEY (ex: build Vercel sans les
+ * env vars encore configurées) ne fasse pas planter le build.
+ */
+function getAnthropic(): Anthropic {
+  if (cached) return cached;
+
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) {
+    throw new Error(
+      "ANTHROPIC_API_KEY est manquant — configure-le dans les variables d'environnement."
+    );
+  }
+
+  cached = new Anthropic({ apiKey });
+  return cached;
+}
 
 const SYSTEM_PROMPT = `Tu es un générateur d'idées de SaaS. Tu reçois les réponses d'un utilisateur à 26 questions sur sa situation réelle.
 
@@ -53,7 +72,7 @@ export async function generateForTier(
 ): Promise<GenerationResult> {
   const config = TIERS[tier];
 
-  const message = await anthropic.messages.create({
+  const message = await getAnthropic().messages.create({
     model: config.model,
     max_tokens: 8000,
     system: SYSTEM_PROMPT,
