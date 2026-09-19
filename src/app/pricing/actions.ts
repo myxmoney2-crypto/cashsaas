@@ -25,6 +25,15 @@ export async function createCheckoutSession(formData: FormData) {
     redirect(`/login?next=/pricing`);
   }
 
+  const { count: answersCount } = await supabase
+    .from("questionnaire_responses")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", user.id);
+
+  if (!answersCount) {
+    redirect("/questionnaire");
+  }
+
   const { data: profile } = await supabase
     .from("profiles")
     .select("stripe_customer_id")

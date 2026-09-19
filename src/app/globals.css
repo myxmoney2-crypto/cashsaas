@@ -45,10 +45,10 @@ body {
   animation: ticker-move 22s linear infinite;
 }
 
-@keyframes notif-in {
+@keyframes fade-up {
   from {
     opacity: 0;
-    transform: translateY(14px);
+    transform: translateY(6px);
   }
   to {
     opacity: 1;
@@ -56,6 +56,239 @@ body {
   }
 }
 
+.validation-in {
+  animation: fade-up 0.35s ease-out both;
+}
+
+/* ---------- iPhone (style X/11) : toutes les tailles en cqw = % de la largeur du téléphone ---------- */
+
+.phone {
+  position: relative;
+  width: clamp(208px, calc((100svh - 270px) * 0.4737), 284px);
+  aspect-ratio: 9 / 19;
+  container-type: inline-size;
+  transform: rotate(-4deg);
+}
+
+.phone-body {
+  position: absolute;
+  inset: 0;
+  border-radius: 15cqw;
+  padding: 1.1cqw;
+  background: linear-gradient(145deg, #4a4f5e, #14161d 42%, #343947);
+  box-shadow:
+    0 28px 56px rgba(0, 0, 0, 0.55),
+    inset 0 0 0 0.35cqw rgba(255, 255, 255, 0.14);
+}
+
+.phone-bezel {
+  width: 100%;
+  height: 100%;
+  border-radius: 14cqw;
+  padding: 3.2cqw;
+  background: #05060a;
+}
+
+.phone-screen {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  border-radius: 11.2cqw;
+  overflow: hidden;
+  background:
+    radial-gradient(120% 55% at 85% 0%, rgba(76, 111, 255, 0.55), transparent 62%),
+    radial-gradient(90% 45% at 5% 38%, rgba(123, 110, 246, 0.4), transparent 66%),
+    #0d0f16;
+}
+
+.phone-notch {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 48cqw;
+  height: 7cqw;
+  border-radius: 0 0 4.6cqw 4.6cqw;
+  background: #05060a;
+  z-index: 3;
+}
+
+.phone-notch::before {
+  content: "";
+  position: absolute;
+  top: 2.4cqw;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 12cqw;
+  height: 1.2cqw;
+  border-radius: 1cqw;
+  background: #1c1f29;
+}
+
+.phone-notch::after {
+  content: "";
+  position: absolute;
+  top: 1.9cqw;
+  right: 9cqw;
+  width: 2.2cqw;
+  height: 2.2cqw;
+  border-radius: 50%;
+  background: #141826;
+  box-shadow: inset 0 0 0 0.4cqw #232a45;
+}
+
+.phone-status {
+  position: absolute;
+  top: 2.3cqw;
+  left: 0;
+  right: 0;
+  padding: 0 4.6cqw;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 3.5cqw;
+  font-weight: 700;
+  color: #f5f6f8;
+  z-index: 4;
+}
+
+.phone-status-icons {
+  display: flex;
+  align-items: center;
+  gap: 0.8cqw;
+}
+
+.phone-lock {
+  position: absolute;
+  top: 12cqw;
+  left: 0;
+  right: 0;
+  text-align: center;
+  color: #f5f6f8;
+}
+
+.phone-lock svg {
+  width: 3.6cqw;
+  height: auto;
+  margin: 0 auto 1.6cqw;
+  display: block;
+  opacity: 0.85;
+}
+
+.phone-time {
+  font-family: var(--font-fredoka), sans-serif;
+  font-weight: 600;
+  font-size: 14cqw;
+  line-height: 1;
+}
+
+.phone-feed {
+  position: absolute;
+  top: 36cqw;
+  left: 3.4cqw;
+  right: 3.4cqw;
+  bottom: 8cqw;
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(to bottom, #000 78%, transparent 100%);
+  mask-image: linear-gradient(to bottom, #000 78%, transparent 100%);
+}
+
+.notif-wrap {
+  display: grid;
+  grid-template-rows: 1fr;
+  animation: notif-slide 0.7s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  animation-delay: var(--delay, 0s);
+}
+
+.notif-wrap > div {
+  min-height: 0;
+  overflow: hidden;
+  padding-bottom: 2cqw;
+}
+
+@keyframes notif-slide {
+  from {
+    grid-template-rows: 0fr;
+    opacity: 0;
+    transform: translateY(-4cqw) scale(0.97);
+  }
+  to {
+    grid-template-rows: 1fr;
+    opacity: 1;
+    transform: none;
+  }
+}
+
 .notif-card {
-  animation: notif-in 0.6s ease-out both;
+  display: flex;
+  gap: 2.6cqw;
+  align-items: flex-start;
+  padding: 3cqw 3.4cqw;
+  border-radius: 4.6cqw;
+  background: rgba(245, 244, 241, 0.94);
+  color: #33363e;
+}
+
+.notif-icon {
+  width: 8cqw;
+  height: 8cqw;
+  border-radius: 2.2cqw;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-family: var(--font-fredoka), sans-serif;
+  font-weight: 600;
+  font-size: 3.8cqw;
+}
+
+.notif-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+.notif-app {
+  font-size: 3.2cqw;
+  font-weight: 700;
+  color: #1a1d26;
+}
+
+.notif-when {
+  font-size: 2.5cqw;
+  color: #8a8a8a;
+}
+
+.notif-body {
+  font-size: 3.1cqw;
+  line-height: 1.35;
+  margin-top: 0.4cqw;
+}
+
+.phone-home {
+  position: absolute;
+  bottom: 2.6cqw;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 32cqw;
+  height: 1.3cqw;
+  border-radius: 1cqw;
+  background: rgba(255, 255, 255, 0.85);
+  z-index: 4;
+}
+
+.phone-btn {
+  position: absolute;
+  width: 1cqw;
+  border-radius: 0.5cqw;
+  background: linear-gradient(90deg, #262a33, #4d5261);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ticker-track,
+  .notif-wrap,
+  .validation-in {
+    animation: none;
+  }
 }

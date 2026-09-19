@@ -4,7 +4,6 @@ import { Ticker } from "@/components/Ticker";
 import { PhoneMockup } from "@/components/PhoneMockup";
 import { Faq } from "@/components/Faq";
 import { SectionLabel } from "@/components/SectionLabel";
-import { TIERS, TIER_ORDER } from "@/lib/tiers";
 
 const PLAN_WEEKS = [
   {
@@ -48,47 +47,27 @@ export default function Home() {
       <Header />
       <Ticker />
 
-      <div className="w-full max-w-[1280px] mx-auto px-6 md:px-16 pt-14 relative">
-        <SectionLabel>Le tri qui te lance en un jour</SectionLabel>
-        <h1 className="font-display font-semibold text-[38px] md:text-[54px] leading-[1.12] max-w-[900px] m-0">
-          <span className="text-foreground">Crée ton business</span>{" "}
-          <span className="text-muted-2">et encaisse</span>{" "}
-          <span className="text-foreground">tes premiers revenus.</span>
-        </h1>
-      </div>
-
-      <div className="w-full max-w-[1280px] mx-auto px-6 md:px-16 pt-7 pb-16 flex flex-col md:flex-row items-start gap-10 relative">
-        <div className="flex-1 flex flex-col gap-6 pt-3">
+      <div className="w-full max-w-[1280px] mx-auto px-6 md:px-16 py-12 md:py-14 grid md:grid-cols-[1.1fr_0.9fr] items-center gap-12 relative">
+        <div className="flex flex-col gap-6">
+          <SectionLabel>Le tri qui te lance en un jour</SectionLabel>
+          <h1 className="font-display font-semibold text-[38px] md:text-[54px] leading-[1.12] m-0">
+            <span className="text-foreground">Crée ton business</span>{" "}
+            <span className="text-muted-2">et encaisse</span>{" "}
+            <span className="text-foreground">tes premiers revenus.</span>
+          </h1>
           <p className="text-[17px] leading-relaxed text-muted max-w-[420px] m-0">
             Un SaaS taillé pour toi, le code déjà écrit, et un plan pour{" "}
             <strong className="text-[#C7CCD6]">tes 30 premiers jours.</strong>
           </p>
-
           <Link
             href="/questionnaire"
             className="bg-accent text-white px-8 py-4 rounded-full font-semibold text-base w-fit hover:opacity-90 transition-opacity"
           >
             Créer mon SaaS →
           </Link>
-
-          <div className="flex gap-7 pt-2 flex-wrap">
-            {[
-              ["26", "questions"],
-              ["3", "paliers d'IA"],
-              ["30", "jours de plan"],
-              ["0€", "chez nous"],
-            ].map(([value, label]) => (
-              <div key={label}>
-                <div className="font-display text-2xl font-semibold text-foreground">
-                  {value}
-                </div>
-                <div className="text-xs text-muted-2">{label}</div>
-              </div>
-            ))}
-          </div>
         </div>
 
-        <div className="flex-1 md:flex-[0.85] flex justify-center md:justify-end w-full">
+        <div className="flex justify-center md:justify-end md:pr-6 py-4">
           <PhoneMockup />
         </div>
       </div>
@@ -114,50 +93,6 @@ export default function Home() {
               <div className="text-[13px] text-muted leading-relaxed">{week.body}</div>
             </div>
           ))}
-        </div>
-      </div>
-
-      <div className="w-full max-w-[1280px] mx-auto px-6 md:px-16 pb-16 flex flex-col gap-6">
-        <div>
-          <SectionLabel>Paliers</SectionLabel>
-          <h2 className="font-display font-semibold text-[30px] text-foreground m-0">
-            Choisis ton palier
-          </h2>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          {TIER_ORDER.map((tierId) => {
-            const tier = TIERS[tierId];
-            return (
-              <div
-                key={tier.id}
-                className="bg-surface border border-white/[0.08] rounded-[20px] p-6 flex flex-col gap-4"
-              >
-                <div>
-                  <div className="text-xs text-accent font-bold mb-1.5 uppercase tracking-wide">
-                    {tier.tagline}
-                  </div>
-                  <div className="font-display text-xl font-semibold text-foreground">
-                    {tier.name}
-                  </div>
-                  <div className="text-2xl font-display font-semibold text-foreground mt-2">
-                    {tier.priceLabel}
-                  </div>
-                </div>
-                <ul className="flex flex-col gap-2 text-sm text-muted">
-                  {tier.features.map((f) => (
-                    <li key={f}>· {f}</li>
-                  ))}
-                </ul>
-                <Link
-                  href="/questionnaire"
-                  className="mt-auto bg-foreground text-background text-center py-3 rounded-full font-semibold text-sm hover:opacity-90 transition-opacity"
-                >
-                  Choisir {tier.name}
-                </Link>
-              </div>
-            );
-          })}
         </div>
       </div>
 

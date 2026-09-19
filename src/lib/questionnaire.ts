@@ -10,6 +10,7 @@ export type Question = {
   max?: number;
   step?: number;
   placeholder?: string;
+  skipIf?: (answers: Record<string, string | number>) => boolean;
 };
 
 export type Block = {
@@ -89,6 +90,7 @@ export const QUESTIONS: Question[] = [
     id: "tried_before_result",
     block: 2,
     type: "textarea",
+    skipIf: (answers) => answers.tried_before === "Non",
     prompt: "Si oui, ça a donné quoi ?",
     placeholder: "Raconte brièvement...",
   },
@@ -223,3 +225,85 @@ export const QUESTIONS: Question[] = [
     placeholder: "...",
   },
 ];
+
+export const INTRO_MESSAGE =
+  "Avant de te générer ton SaaS sur mesure, on a besoin de mieux te connaître — plus tu es précis, plus le résultat sera collé à toi. Ça prend 3-4 minutes.";
+
+type Answer = string | number;
+type Validation = string | ((answer: Answer) => string);
+
+// Ton sobre et motivant, sans jamais comparer à une personne ou un archétype.
+const VALIDATIONS: Record<string, Validation> = {
+  age: (a) =>
+    Number(a) >= 36
+      ? "Ton âge, c'est de l'expérience en plus, un vrai atout pour se lancer."
+      : "Cet âge est un vrai avantage pour se lancer, t'as le temps de ton côté.",
+  motivation:
+    "Cette motivation-là, c'est exactement celle qui pousse les gens à tenir dans la durée.",
+  passion: "Cette niche a un vrai potentiel en ce moment, bon choix.",
+  profitable_uninterested: (a) =>
+    a === "Je passe mon tour"
+      ? "Choisir un sujet qui te parle, c'est ce qui aide à tenir dans la durée."
+      : "Cette flexibilité, c'est un vrai atout — ça élargit beaucoup les options possibles.",
+  on_camera: (a) =>
+    a === "À l'aise en vidéo"
+      ? "Être à l'aise devant la caméra ouvre beaucoup de formats pour se faire connaître."
+      : "Rester en retrait, ça marche très bien aussi — on adaptera le plan en conséquence.",
+
+  current_situation:
+    "Ta situation ne va pas t'empêcher d'avancer là-dessus, au contraire, c'est un bon point de départ.",
+  current_income: "Ok, on en tient compte pour la suite.",
+  tried_before: (a) =>
+    a === "Non"
+      ? "Pas de souci : tu pars sans mauvaises habitudes à défaire, c'est un bon point de départ."
+      : "L'expérience compte, même quand ça a pas marché — on apprend de ça.",
+  tried_before_result:
+    "L'expérience compte, même quand ça a pas marché — on apprend de ça.",
+  invested_before: (a) =>
+    /^\s*(0|aucun|rien|non|jamais)/i.test(String(a))
+      ? "Pas besoin d'avoir déjà investi pour bien démarrer, on part de là où tu en es."
+      : "Ça montre que t'es prêt à mettre les moyens, c'est un bon signal.",
+  skills: "Ces compétences vont vraiment servir, on va s'appuyer dessus.",
+
+  income_goal: "Objectif noté — on construit le plan pour y aller étape par étape.",
+  starting_budget: (a) =>
+    Number(a) < 100
+      ? "Démarrer avec peu, c'est tout à fait possible — on s'adapte à ton budget."
+      : "Ce budget permet de bien démarrer, on s'en sert au mieux.",
+  time_per_week: "Le temps dispo décide du rythme, on va caler le plan dessus.",
+  speed_vs_solid: "Bien noté, ça oriente le type d'idée qu'on va te proposer.",
+  audience: (a) =>
+    a === "Je pars de zéro"
+      ? "Partir de zéro, ça se fait très bien avec le bon plan."
+      : "Avoir déjà une audience, c'est un vrai coup d'avance.",
+  steady_vs_big: "Compris, on choisit un modèle cohérent avec ça.",
+  timeline:
+    "Se fixer un horizon clair, c'est ce qui permet de mesurer ses progrès.",
+
+  solo_vs_pushed:
+    "Bon à savoir, le plan sera pensé pour ta façon de travailler.",
+  instinct_vs_calc:
+    "Les deux approches ont leurs forces, on s'adapte à la tienne.",
+  would_quit_reason:
+    "Merci pour cette franchise, ça nous aide à prévoir des garde-fous.",
+  time_constraints:
+    "On en tient compte pour que le plan reste tenable au quotidien.",
+  tech_comfort: "Parfait, on ajuste le niveau technique en conséquence.",
+  solo_vs_partner:
+    "Noté, ça influence la forme que peut prendre le projet.",
+  existing_tools: "Ce que tu utilises déjà peut devenir un vrai raccourci.",
+  anything_else:
+    "Merci d'avoir pris le temps, c'est ce qui rend le résultat vraiment personnel.",
+};
+
+export function getValidation(questionId: string, answer: Answer): string {
+  const validation = VALIDATIONS[questionId];
+  if (!validation) return "Noté.";
+  return typeof validation === "function" ? validation(answer) : validation;
+}
+
+export function getVisibleQuestions(
+  answers: Record<string, string | number>
+): Question[] {
+  return QUESTIONS.filter((q) => !q.skipIf?.(answers));
+}

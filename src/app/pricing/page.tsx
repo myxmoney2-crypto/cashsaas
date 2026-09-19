@@ -1,9 +1,29 @@
+import { redirect } from "next/navigation";
 import { Header } from "@/components/Header";
 import { SectionLabel } from "@/components/SectionLabel";
+import { createClient } from "@/lib/supabase/server";
 import { TIERS, TIER_ORDER } from "@/lib/tiers";
 import { createCheckoutSession } from "./actions";
 
 export default async function PricingPage(props: PageProps<"/pricing">) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    redirect("/login?next=/pricing");
+  }
+
+  const { count: answersCount } = await supabase
+    .from("questionnaire_responses")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", user.id);
+
+  if (!answersCount) {
+    redirect("/questionnaire");
+  }
+
   const searchParams = await props.searchParams;
   const error = typeof searchParams.error === "string" ? searchParams.error : null;
 
@@ -12,13 +32,13 @@ export default async function PricingPage(props: PageProps<"/pricing">) {
       <Header />
       <div className="w-full max-w-[1000px] px-6 py-14 flex flex-col gap-8">
         <div>
-          <SectionLabel>Dernière étape</SectionLabel>
+          <SectionLabel>Tes réponses sont envoyées</SectionLabel>
           <h1 className="font-display font-semibold text-[34px] text-foreground m-0">
-            Choisis ton palier
+            Débloque ton résultat
           </h1>
           <p className="text-muted mt-3 max-w-[520px]">
-            Ton questionnaire est enregistré. Le paiement déclenche la génération de
-            ton idée, de ton code, et de ton plan des 30 premiers jours.
+            Choisis ton palier pour générer ton idée de SaaS, ton code et ton plan des
+            30 premiers jours, à partir de tes 26 réponses.
           </p>
         </div>
 
