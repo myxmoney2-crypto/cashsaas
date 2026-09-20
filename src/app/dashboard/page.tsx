@@ -67,20 +67,20 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
 
   const { data: latest } = await supabase
     .from("generations")
-    .select("id, status, created_at, code_repo_url")
+    .select("status, created_at")
     .eq("user_id", user.id)
     .order("created_at", { ascending: false })
     .limit(1)
-    .maybeSingle<Pick<Generation, "id" | "status" | "created_at" | "code_repo_url">>();
+    .maybeSingle<Pick<Generation, "status" | "created_at">>();
 
   const { data: done } = await supabase
     .from("generations")
-    .select("result, code_repo_url")
+    .select("result")
     .eq("user_id", user.id)
     .eq("status", "done")
     .order("created_at", { ascending: false })
     .limit(1)
-    .maybeSingle<Pick<Generation, "result" | "code_repo_url">>();
+    .maybeSingle<Pick<Generation, "result">>();
 
   const { data: usage } = await supabase
     .from("regenerations_usage")
@@ -204,7 +204,7 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
               Déploie sur tes propres comptes
             </h2>
           </div>
-          <OnboardingSteps codeRepoUrl={done?.code_repo_url ?? latest?.code_repo_url} />
+          <OnboardingSteps />
         </section>
 
         <Link href="/" className="text-sm text-muted-2 hover:text-foreground w-fit">

@@ -15,8 +15,9 @@ Stack : Next.js 16 (App Router) + Tailwind v4, Supabase (auth + DB), Stripe
 - **Stripe** — un compte (mode test d'abord) → clé secrète, clé publique, secret de
   webhook, et 3 produits d'abonnement récurrents (Starter/Pro/Premium) → un Price ID
   par palier
-- **GitHub** — un repo "template" (public, `Template repository` activé dans ses
-  Settings) contenant le scaffold que chaque client duplique
+- **GitHub** — le repo template `myxmoney2-crypto/cashsaas-template` (public, `Template repository`
+  activé) : site statique + petit script de build qui injecte `SUPABASE_URL` et `SUPABASE_ANON_KEY`.
+  Le bouton « Deploy to Vercel » du dashboard le clone chez le client
 - **Vercel** — pour héberger ce site
 - **Un nom de domaine** (OVH, Namecheap, ...)
 

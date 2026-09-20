@@ -30,7 +30,11 @@ const SYSTEM_PROMPT = `Tu es un générateur d'idées de SaaS. Tu reçois les r�
 
 1. Une idée de SaaS ou de business précise, réaliste, réalisable seul dans le budget et le temps disponible indiqués. Si l'utilisateur a une passion ou une niche claire, ancre l'idée dedans. Sinon, propose un "produit gagnant" générique adapté à son profil.
 
-2. Un scaffold de code fonctionnel (un fichier HTML/JS autonome avec intégration Supabase), pas seulement un texte à copier. Le code doit être prêt à être poussé sur un repo GitHub template.
+2. Un scaffold de code fonctionnel, livré dans code_files :
+   - un fichier "index.html" autonome (HTML + CSS + JS dans le même fichier, aucun framework, aucune étape de build), qui sera placé à la racine d'un site statique déjà déployé sur Vercel ;
+   - il utilise Supabase via le CDN https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2 et lit sa configuration UNIQUEMENT dans window.ENV.SUPABASE_URL et window.ENV.SUPABASE_ANON_KEY (le fichier /config.js, fourni par le template, se charge avec <script src="/config.js"></script> avant ton script) ; n'écris jamais de clé en dur ;
+   - si des tables sont nécessaires, ajoute aussi un fichier "supabase/schema.sql" (rejouable sans risque, RLS activé, policies adaptées à la clé anon) ; ne réutilise pas la table "leads" du template sauf si elle convient vraiment ;
+   - le code doit être complet et fonctionner tel quel, sans dépendance supplémentaire.
 
 3. Des recommandations d'outils adaptées au budget déclaré (si budget serré : tiers gratuits Vercel/Supabase ; si budget confortable : paliers payants).
 
