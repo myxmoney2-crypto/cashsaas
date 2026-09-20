@@ -1,7 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import type { QuestionnaireAnswers, GenerationResult, Tier } from "./types";
 import { TIERS } from "./tiers";
-import { QUESTIONS } from "./questionnaire";
+import { EXTRA_QUESTIONS, QUESTIONS } from "./questionnaire";
 
 let cached: Anthropic | null = null;
 
@@ -24,7 +24,7 @@ function getAnthropic(): Anthropic {
   return cached;
 }
 
-const SYSTEM_PROMPT = `Tu es un générateur d'idées de SaaS. Tu reçois les réponses d'un utilisateur à 26 questions sur sa situation réelle.
+const SYSTEM_PROMPT = `Tu es un générateur d'idées de SaaS. Tu reçois les réponses d'un utilisateur à un questionnaire sur sa situation réelle (26 questions, plus 2 questions complémentaires dont le prix qu'il vise pour son produit).
 
 À partir de l'ENSEMBLE des réponses (jamais une seule question isolée), génère :
 
@@ -52,7 +52,7 @@ Réponds UNIQUEMENT avec un objet JSON valide, sans texte autour, de la forme :
 }`;
 
 function formatAnswers(answers: QuestionnaireAnswers): string {
-  return QUESTIONS.map((q) => {
+  return [...QUESTIONS, ...EXTRA_QUESTIONS].map((q) => {
     const value = answers[q.id];
     if (value === undefined || value === "") return null;
     return `- ${q.prompt}\n  → ${value}`;
@@ -83,7 +83,7 @@ export async function generateForTier(
     messages: [
       {
         role: "user",
-        content: `Voici les 26 réponses du questionnaire :\n\n${formatAnswers(answers)}`,
+        content: `Voici les réponses au questionnaire :\n\n${formatAnswers(answers)}`,
       },
     ],
   });

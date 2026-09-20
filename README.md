@@ -67,7 +67,10 @@ stripe listen --forward-to localhost:3000/api/webhooks/stripe
 ## 5. Parcours
 
 `/` (landing) → `/questionnaire` (26 questions, **sans compte**) → « Envoyer mes réponses » garde
-les réponses dans le navigateur (localStorage, 7 jours) et ouvre `/pricing`. Là, en **un seul
+les réponses dans le navigateur (localStorage, 7 jours) et ouvre `/calcul` : une barre de progression
+(~5 s) pendant laquelle 2 pop-ups posent une question de plus (`daily_content`, `target_price`, ajoutées
+aux réponses), puis une carte « simulation » de l'objectif de revenu de la personne (calculée
+uniquement à partir de ses réponses, clairement présentée comme une simulation). Ensuite `/pricing` : là, en **un seul
 formulaire**, la personne crée son compte (ou se connecte), choisit son palier et est envoyée vers
 Stripe Checkout ; ses réponses sont enregistrées sur son compte à ce moment-là. Le webhook Stripe
 déclenche la génération IA en arrière-plan (Haiku/Sonnet/Opus selon le palier) → `/dashboard`

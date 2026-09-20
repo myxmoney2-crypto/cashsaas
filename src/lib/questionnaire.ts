@@ -322,3 +322,37 @@ export const INTRO_MESSAGE =
 export function getVisibleQuestions(answers: Answers): Question[] {
   return QUESTIONS.filter((q) => !q.skipIf?.(answers));
 }
+
+/** Toutes les questions posées (donc non sautées) et non facultatives ont une réponse. */
+export function isComplete(answers: Answers): boolean {
+  return getVisibleQuestions(answers).every((q) => q.optional || answers[q.id] !== undefined);
+}
+
+export type ExtraQuestion = {
+  id: string;
+  prompt: string;
+  choices: string[];
+};
+
+// Posées en pop-up pendant l'écran « calcul en cours » ; leurs réponses sont ajoutées aux autres.
+// Facultatives pour la complétude (elles ne sont pas dans QUESTIONS).
+export const EXTRA_QUESTIONS: ExtraQuestion[] = [
+  {
+    id: "daily_content",
+    prompt: "Tu es prêt à poster du contenu tous les jours ?",
+    choices: ["Oui", "Non"],
+  },
+  {
+    // Sert au calcul de la simulation : le prix vient de la personne, il n'est jamais deviné.
+    id: "target_price",
+    prompt: "Tu vises quel prix pour ton produit ?",
+    choices: ["9 €", "19 €", "29 €", "49 €", "99 €"],
+  },
+];
+
+export const RECURRING_CHOICE = "Petit à petit chaque mois";
+
+export function parsePrice(choice: string): number | null {
+  const price = parseInt(choice, 10);
+  return Number.isFinite(price) && price > 0 ? price : null;
+}

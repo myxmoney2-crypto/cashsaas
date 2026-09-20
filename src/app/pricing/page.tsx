@@ -1,9 +1,15 @@
 import { redirect } from "next/navigation";
-import { Header } from "@/components/Header";
 import { PricingForm } from "@/components/PricingForm";
 import { SectionLabel } from "@/components/SectionLabel";
 import { createClient } from "@/lib/supabase/server";
-import { TIERS, TIER_ORDER } from "@/lib/tiers";
+import {
+  DELIVERABLES,
+  TIERS,
+  TIER_ORDER,
+  formatEuros,
+  perDayLabel,
+  regenerationsLabel,
+} from "@/lib/tiers";
 
 // La génération admin démarre depuis l'action de cette page (via after()) : elle a besoin de temps.
 export const maxDuration = 300;
@@ -39,17 +45,21 @@ export default async function PricingPage(props: PageProps<"/pricing">) {
     hasServerAnswers = Boolean(count);
   }
 
-  const tiers = TIER_ORDER.map((id) => ({
-    id,
-    name: TIERS[id].name,
-    priceLabel: TIERS[id].priceLabel,
-    tagline: TIERS[id].tagline,
-    features: TIERS[id].features,
-  }));
+  const tiers = TIER_ORDER.map((id) => {
+    const tier = TIERS[id];
+    return {
+      id,
+      name: tier.name,
+      tagline: tier.tagline,
+      price: formatEuros(tier.price),
+      perDay: perDayLabel(tier.price),
+      model: `${tier.modelLabel} (${tier.modelNote})`,
+      generations: regenerationsLabel(tier.regenerationsPerMonth),
+    };
+  });
 
   return (
     <div className="w-full flex flex-col items-center">
-      <Header />
       <div className="w-full max-w-[1000px] px-6 py-14 flex flex-col gap-8">
         <div>
           <SectionLabel>Tes réponses sont prêtes</SectionLabel>
@@ -70,6 +80,7 @@ export default async function PricingPage(props: PageProps<"/pricing">) {
 
         <PricingForm
           tiers={tiers}
+          deliverables={DELIVERABLES}
           email={user?.email ?? null}
           isAdmin={isAdmin}
           hasServerAnswers={hasServerAnswers}

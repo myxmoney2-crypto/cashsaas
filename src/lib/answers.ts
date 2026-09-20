@@ -1,13 +1,15 @@
 import { z } from "zod";
-import { QUESTIONS, getVisibleQuestions, type Answers } from "./questionnaire";
+import {
+  EXTRA_QUESTIONS,
+  QUESTIONS,
+  getVisibleQuestions,
+  isComplete,
+  type Answers,
+} from "./questionnaire";
 
 const schema = z.record(z.string(), z.union([z.string().max(1000), z.number()]));
-const KNOWN_IDS = new Set(QUESTIONS.map((q) => q.id));
-
-/** Toutes les questions posées (donc non sautées) et non facultatives ont une réponse. */
-export function isComplete(answers: Answers): boolean {
-  return getVisibleQuestions(answers).every((q) => q.optional || answers[q.id] !== undefined);
-}
+const EXTRAS = new Map(EXTRA_QUESTIONS.map((q) => [q.id, q]));
+const KNOWN_IDS = new Set([...QUESTIONS.map((q) => q.id), ...EXTRAS.keys()]);
 
 /**
  * Valide les réponses reçues du navigateur (JSON) : on ne fait pas confiance au client.
@@ -40,7 +42,9 @@ export function parseAnswers(raw: unknown): Answers | null {
 
   const asked = new Set(getVisibleQuestions(answers).map((q) => q.id));
   for (const id of Object.keys(answers)) {
-    if (!asked.has(id)) delete answers[id];
+    const extra = EXTRAS.get(id);
+    // Les questions du pop-up n'acceptent que leurs propres choix ; les autres doivent être « posées ».
+    if (extra ? !extra.choices.includes(String(answers[id])) : !asked.has(id)) delete answers[id];
   }
 
   return isComplete(answers) ? answers : null;

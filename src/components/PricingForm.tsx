@@ -4,22 +4,23 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { useFormStatus } from "react-dom";
 import { startCheckout } from "@/app/pricing/actions";
-import { parseStoredAnswers, readRawStoredAnswers } from "@/lib/stored-answers";
+import {
+  parseStoredAnswers,
+  readRawStoredAnswers,
+  subscribeStoredAnswers,
+} from "@/lib/stored-answers";
 
 export type TierCard = {
   id: string;
   name: string;
-  priceLabel: string;
   tagline: string;
-  features: string[];
+  price: string;
+  perDay: string;
+  model: string;
+  generations: string;
 };
 
 type Mode = "signup" | "login";
-
-const subscribe = (callback: () => void) => {
-  window.addEventListener("storage", callback);
-  return () => window.removeEventListener("storage", callback);
-};
 
 const inputClass =
   "bg-surface border border-white/10 rounded-xl px-4 py-3 text-foreground outline-none focus:border-accent";
@@ -41,12 +42,14 @@ function TierButton({ tier, label, disabled }: { tier: string; label: string; di
 
 export function PricingForm({
   tiers,
+  deliverables,
   email,
   isAdmin,
   hasServerAnswers,
   initialMode,
 }: {
   tiers: TierCard[];
+  deliverables: string[];
   email: string | null;
   isAdmin: boolean;
   hasServerAnswers: boolean;
@@ -55,7 +58,7 @@ export function PricingForm({
   const router = useRouter();
   // undefined = pas encore hydraté (rendu serveur) ; null = hydraté mais rien de stocké.
   const raw = useSyncExternalStore<string | null | undefined>(
-    subscribe,
+    subscribeStoredAnswers,
     readRawStoredAnswers,
     () => undefined
   );
@@ -135,26 +138,63 @@ export function PricingForm({
         </div>
       )}
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {tiers.map((tier) => (
           <div
             key={tier.id}
-            className="bg-surface border border-white/[0.08] rounded-[20px] p-6 flex flex-col gap-4"
+            className="bg-surface border border-white/[0.08] rounded-[20px] p-6 flex flex-col gap-5"
           >
             <div>
               <div className="text-xs text-accent font-bold mb-1.5 uppercase tracking-wide">
                 {tier.tagline}
               </div>
               <div className="font-display text-xl font-semibold text-foreground">{tier.name}</div>
-              <div className="text-2xl font-display font-semibold text-foreground mt-2">
-                {tier.priceLabel}
+              <div className="flex items-baseline gap-1.5 mt-3">
+                <span className="font-display text-[44px] leading-none font-semibold text-foreground">
+                  {tier.price}
+                </span>
+                <span className="text-sm text-muted-2">/ mois</span>
+              </div>
+              <div className="text-sm text-foreground mt-2">soit environ {tier.perDay}</div>
+              <div className="text-xs text-muted mt-1">Abonnement mensuel, résiliable à tout moment depuis ton tableau de bord</div>
+            </div>
+
+            <div className="flex flex-col gap-2 rounded-xl bg-accent/10 border border-accent/25 px-4 py-3 text-sm">
+              <div>
+                <span className="text-muted">Modèle IA : </span>
+                <span className="text-foreground font-semibold">{tier.model}</span>
+              </div>
+              <div>
+                <span className="text-muted">Générations : </span>
+                <span className="text-foreground font-semibold">{tier.generations}</span>
               </div>
             </div>
-            <ul className="flex flex-col gap-2 text-sm text-muted">
-              {tier.features.map((f) => (
-                <li key={f}>· {f}</li>
-              ))}
-            </ul>
+
+            <div>
+              <div className="text-xs uppercase tracking-wide text-muted-2 font-semibold mb-2.5">
+                Inclus dans les 3 paliers
+              </div>
+              <ul className="flex flex-col gap-2.5 text-sm text-muted">
+                {deliverables.map((item) => (
+                  <li key={item} className="flex gap-2.5">
+                    <svg
+                      viewBox="0 0 16 16"
+                      className="w-4 h-4 mt-0.5 shrink-0 text-accent"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      aria-hidden="true"
+                    >
+                      <path d="M3 8.5l3.2 3.2L13 5" />
+                    </svg>
+                    <span>{item}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
             <TierButton
               tier={tier.id}
               disabled={!hydrated}

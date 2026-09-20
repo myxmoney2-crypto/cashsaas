@@ -198,14 +198,14 @@ export function QuestionnaireFlow() {
       setIndex((i) => i + 1);
       return;
     }
-    // Pas de compte à ce stade : on garde les réponses dans le navigateur et on passe au paywall,
-    // où le compte se crée en même temps que le choix du palier et le paiement.
+    // Pas de compte à ce stade : on garde les réponses dans le navigateur, on passe par l'écran
+    // « calcul en cours » (qui ajoute ses 2 questions), puis le paywall crée le compte et encaisse.
     // On n'envoie que les questions réellement posées (pas une réponse périmée à une question sautée).
     const asked = Object.fromEntries(
       questions.filter((q) => isAnswered(answers[q.id])).map((q) => [q.id, answers[q.id]])
     );
     saveStoredAnswers(asked);
-    router.push("/pricing");
+    router.push("/calcul");
   }
 
   function goBack() {
