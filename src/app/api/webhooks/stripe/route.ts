@@ -75,6 +75,30 @@ export async function POST(request: Request) {
       break;
     }
 
+    // Remboursement complet (accordé depuis le tableau de bord Stripe) : l'abonnement est annulé
+    // automatiquement, comme l'annonce la politique de remboursement. Un remboursement partiel ne l'annule pas.
+    case "charge.refunded": {
+      const charge = event.data.object as Stripe.Charge;
+      if (!charge.refunded) break;
+
+      const customerId = typeof charge.customer === "string" ? charge.customer : charge.customer?.id;
+      if (!customerId) break;
+
+      const stripe = getStripe();
+      const subscriptions = await stripe.subscriptions.list({ customer: customerId, status: "all" });
+      for (const subscription of subscriptions.data) {
+        if (subscription.status !== "canceled" && subscription.status !== "incomplete_expired") {
+          await stripe.subscriptions.cancel(subscription.id);
+        }
+      }
+
+      await supabase
+        .from("profiles")
+        .update({ subscription_status: "canceled" })
+        .eq("stripe_customer_id", customerId);
+      break;
+    }
+
     case "customer.subscription.deleted": {
       const subscription = event.data.object as Stripe.Subscription;
       const userId = subscription.metadata?.user_id;

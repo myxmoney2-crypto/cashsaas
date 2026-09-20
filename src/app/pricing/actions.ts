@@ -50,6 +50,10 @@ export async function startCheckout(formData: FormData) {
 
   const mode: Mode = formData.get("mode") === "login" ? "login" : "signup";
   const answers = parseAnswers(formData.get("answers"));
+  // Demande d'exécution immédiate + reconnaissance de la perte du droit de rétractation pour le contenu
+  // numérique livré (art. L221-28, 13° du Code de la consommation) : obligatoire pour commander.
+  const waived = formData.get("accept_immediate") === "on";
+  const WAIVER_ERROR = "Coche la case de demande d'exécution immédiate pour pouvoir commander.";
 
   const supabase = await createClient();
   const service = createServiceRoleClient();
@@ -61,6 +65,7 @@ export async function startCheckout(formData: FormData) {
   if (!user) {
     // Pas de compte sans réponses : on ne facture pas quelqu'un qui n'a rien à recevoir.
     if (!answers) redirect("/questionnaire");
+    if (!waived) fail(WAIVER_ERROR, mode);
 
     const email = String(formData.get("email") ?? "").trim();
     const password = String(formData.get("password") ?? "");
@@ -130,6 +135,8 @@ export async function startCheckout(formData: FormData) {
     redirect("/dashboard?checkout=success");
   }
 
+  if (!waived) fail(WAIVER_ERROR);
+
   // Déjà abonné : pas de deuxième abonnement.
   if (profile?.subscription_status === "active") redirect("/dashboard");
 
@@ -151,6 +158,13 @@ export async function startCheckout(formData: FormData) {
 
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
 
+  // Preuve de la demande d'exécution immédiate, horodatée et conservée chez Stripe (sur la session de
+  // paiement et sur l'abonnement) : c'est au professionnel de prouver l'accord préalable exprès.
+  const consentProof = {
+    immediate_execution_accepted_at: new Date().toISOString(),
+    withdrawal_waiver_l221_28_13: "accepted",
+  };
+
   let checkoutUrl: string | null = null;
   try {
     const session = await stripe.checkout.sessions.create({
@@ -159,8 +173,8 @@ export async function startCheckout(formData: FormData) {
       line_items: [{ price: config.stripePriceId, quantity: 1 }],
       success_url: `${siteUrl}/dashboard?checkout=success`,
       cancel_url: `${siteUrl}/pricing?checkout=canceled`,
-      metadata: { user_id: userId, tier },
-      subscription_data: { metadata: { user_id: userId, tier } },
+      metadata: { user_id: userId, tier, ...consentProof },
+      subscription_data: { metadata: { user_id: userId, tier, ...consentProof } },
     });
     checkoutUrl = session.url;
   } catch (err) {

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { useFormStatus } from "react-dom";
@@ -136,6 +137,27 @@ export function PricingForm({
             />
           </label>
         </div>
+      )}
+
+      {!isAdmin && (
+        <label className="flex gap-3 items-start text-sm text-muted cursor-pointer max-w-[760px] border border-white/10 rounded-2xl p-5">
+          <input
+            type="checkbox"
+            name="accept_immediate"
+            required
+            className="mt-1 h-4 w-4 shrink-0 accent-[var(--accent)]"
+          />
+          <span>
+            Je demande l’exécution immédiate du service (génération de mon résultat) avant la fin du délai de
+            rétractation de 14 jours, et je reconnais que je perds mon droit de rétractation pour le contenu
+            numérique dès qu’il m’a été livré. Cela ne m’empêche pas de demander un remboursement selon la{" "}
+            <Link href="/remboursement" target="_blank" className="underline text-accent">
+              garantie de remboursement
+              <span className="sr-only"> (s’ouvre dans un nouvel onglet)</span>
+            </Link>
+            .
+          </span>
+        </label>
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
