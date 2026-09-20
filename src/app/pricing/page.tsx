@@ -53,7 +53,6 @@ export default async function PricingPage(props: PageProps<"/pricing">) {
       tagline: tier.tagline,
       price: formatEuros(tier.price),
       perDay: perDayLabel(tier.price),
-      model: `${tier.modelLabel} (${tier.modelNote})`,
       generations: regenerationsLabel(tier.regenerationsPerMonth),
     };
   });

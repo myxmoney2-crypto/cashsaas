@@ -17,7 +17,6 @@ export type TierCard = {
   tagline: string;
   price: string;
   perDay: string;
-  model: string;
   generations: string;
 };
 
@@ -182,10 +181,6 @@ export function PricingForm({
             </div>
 
             <div className="flex flex-col gap-2 rounded-xl bg-accent/10 border border-accent/25 px-4 py-3 text-sm">
-              <div>
-                <span className="text-muted">Modèle IA : </span>
-                <span className="text-foreground font-semibold">{tier.model}</span>
-              </div>
               <div>
                 <span className="text-muted">Générations : </span>
                 <span className="text-foreground font-semibold">{tier.generations}</span>

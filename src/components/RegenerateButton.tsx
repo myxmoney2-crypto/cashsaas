@@ -16,13 +16,22 @@ export function RegenerateButton({
   function handleClick() {
     setError(null);
     startTransition(async () => {
-      const res = await fetch("/api/generate", { method: "POST" });
-      const data = await res.json();
-      if (!res.ok) {
-        setError(data.error ?? "Erreur inconnue");
-        return;
+      try {
+        const res = await fetch("/api/generate", { method: "POST" });
+        const data = await res.json().catch(() => null);
+        if (!res.ok) {
+          setError(
+            data?.error ??
+              (res.status === 504
+                ? "La génération a pris trop de temps, réessaie."
+                : `Erreur du serveur (${res.status}), réessaie.`)
+          );
+          return;
+        }
+        router.refresh();
+      } catch {
+        setError("Connexion interrompue, réessaie.");
       }
-      router.refresh();
     });
   }
 

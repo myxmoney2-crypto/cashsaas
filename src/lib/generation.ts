@@ -32,15 +32,38 @@ export async function createPendingGeneration(
   return data.id;
 }
 
-/** Fait le vrai travail (appel IA) ; ne lance jamais : le résultat, ou l'échec, est écrit sur la ligne. */
+// La fonction Vercel est tuée à 300 s : on abandonne avant, pour avoir le temps d'écrire « failed » en base.
+const GENERATION_LIMIT_MS = 270_000;
+
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  let timer: ReturnType<typeof setTimeout>;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(
+      () => reject(new Error(`Délai dépassé (${Math.round(ms / 1000)} s) : la génération a été interrompue`)),
+      ms
+    );
+  });
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+}
+
+/**
+ * Fait le vrai travail (appel IA). Ne lance jamais : la ligne finit TOUJOURS en « done » ou « failed »
+ * (chaque écriture en base est vérifiée : une écriture ratée n'est plus silencieuse), et chaque étape
+ * laisse une ligne « [generation] » dans les journaux Vercel.
+ */
 export async function runGeneration(
   supabase: SupabaseClient,
   generationId: string,
   userId: string,
-  tier: Tier
+  tier: Tier,
+  limitMs: number = GENERATION_LIMIT_MS
 ): Promise<void> {
+  const startedAt = Date.now();
+  const seconds = () => Math.round((Date.now() - startedAt) / 1000);
+  console.log("[generation] start", { generationId, tier });
+
   try {
-    const { data: latest } = await supabase
+    const { data: latest, error: readError } = await supabase
       .from("questionnaire_responses")
       .select("answers")
       .eq("user_id", userId)
@@ -48,11 +71,12 @@ export async function runGeneration(
       .limit(1)
       .maybeSingle();
 
+    if (readError) throw new Error(`Lecture du questionnaire impossible : ${readError.message}`);
     if (!latest) throw new Error("Aucun questionnaire trouvé pour cet utilisateur");
 
-    const result = await generateForTier(tier, latest.answers);
+    const result = await withTimeout(generateForTier(tier, latest.answers), limitMs);
 
-    await supabase
+    const { error: writeError } = await supabase
       .from("generations")
       .update({
         status: "done",
@@ -62,12 +86,19 @@ export async function runGeneration(
         result,
       })
       .eq("id", generationId);
+    if (writeError) throw new Error(`Enregistrement du résultat impossible : ${writeError.message}`);
+
+    console.log("[generation] done", { generationId, seconds: seconds() });
   } catch (err) {
-    console.error("Generation failed", { generationId, userId, err });
     const message = err instanceof Error ? err.message : String(err);
-    await supabase
+    console.error("[generation] failed", { generationId, seconds: seconds(), message });
+
+    const { error } = await supabase
       .from("generations")
       .update({ status: "failed", error: message.slice(0, 300) })
       .eq("id", generationId);
+    if (error) {
+      console.error("[generation] impossible d'enregistrer l'échec", { generationId, message: error.message });
+    }
   }
 }

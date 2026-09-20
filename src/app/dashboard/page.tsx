@@ -17,10 +17,14 @@ function currentMonth(): string {
 
 // Une génération « pending » depuis plus longtemps que ça est considérée comme perdue
 // (fonction interrompue) : on propose de relancer au lieu d'attendre indéfiniment.
-const PENDING_TIMEOUT_MS = 6 * 60 * 1000;
+const PENDING_TIMEOUT_MS = 5 * 60 * 1000;
 
 function isExpired(createdAt: string): boolean {
   return Date.now() - new Date(createdAt).getTime() > PENDING_TIMEOUT_MS;
+}
+
+function elapsedSeconds(createdAt: string): number {
+  return Math.max(0, Math.round((Date.now() - new Date(createdAt).getTime()) / 1000));
 }
 
 export default async function DashboardPage(props: PageProps<"/dashboard">) {
@@ -73,13 +77,13 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
   // Les comptes admin (tests) n'ont pas d'abonnement Stripe : pas de portail.
   const canManageBilling = !isAdmin && Boolean(profile.stripe_customer_id);
 
-  const { data: latest } = await supabase
+  const { data: latest, error: latestError } = await supabase
     .from("generations")
-    .select("status, created_at")
+    .select("status, created_at, error")
     .eq("user_id", user.id)
     .order("created_at", { ascending: false })
     .limit(1)
-    .maybeSingle<Pick<Generation, "status" | "created_at">>();
+    .maybeSingle<Pick<Generation, "status" | "created_at" | "error">>();
 
   const { data: done } = await supabase
     .from("generations")
@@ -102,7 +106,9 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
   const result = (done?.result ?? null) as GenerationResult | null;
   const failed =
     latest?.status === "failed" || (latest?.status === "pending" && isExpired(latest.created_at));
-  const inProgress = !failed && (!latest || latest.status === "pending");
+  // Si l'état ne peut pas être lu (colonne absente, cache de schéma...), on l'affiche au lieu de
+  // tourner indéfiniment sur « en cours ».
+  const inProgress = !latestError && !failed && (!latest || latest.status === "pending");
 
   return (
     <div className="w-full flex flex-col items-center">
@@ -155,6 +161,18 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
             <AutoRefresh intervalMs={5000} />
             {result ? "Une nouvelle génération est en cours : " : "Ta génération est en cours : "}
             elle peut prendre une à deux minutes, cette page se met à jour toute seule.
+            {isAdmin && latest?.status === "pending" && (
+              <span className="block mt-2 text-muted-2">
+                Admin : démarrée il y a {elapsedSeconds(latest.created_at)} s.
+              </span>
+            )}
+          </div>
+        )}
+
+        {latestError && (
+          <div className="bg-red-950/40 border border-red-900 rounded-2xl p-6 text-sm text-red-300">
+            Impossible de lire l&apos;état de ta génération pour le moment.
+            {isAdmin && <span className="block mt-2 font-mono text-xs">{latestError.message}</span>}
           </div>
         )}
 
@@ -162,6 +180,11 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
           <div className="bg-red-950/40 border border-red-900 rounded-2xl p-6 text-sm text-red-300">
             La génération n&apos;a pas abouti. Clique sur « Régénérer » ci-dessus pour relancer : un
             essai raté ne consomme pas ton quota du mois.
+            {isAdmin && (
+              <span className="block mt-2 font-mono text-xs">
+                {latest?.error ?? "Aucun motif enregistré : la fonction a probablement été interrompue."}
+              </span>
+            )}
           </div>
         )}
 

@@ -7,8 +7,6 @@ export type TierConfig = {
   price: number;
   stripePriceId: string | undefined;
   model: string;
-  modelLabel: string;
-  modelNote: string;
   /** Régénérations possibles par mois, en plus de la génération faite à l'achat. */
   regenerationsPerMonth: number;
   tagline: string;
@@ -21,8 +19,6 @@ export const TIERS: Record<Tier, TierConfig> = {
     price: 14.9,
     stripePriceId: process.env.STRIPE_PRICE_STARTER,
     model: "claude-haiku-4-5-20251001",
-    modelLabel: "Claude Haiku",
-    modelNote: "rapide",
     regenerationsPerMonth: 1,
     tagline: "Pour tester l'idée",
   },
@@ -32,8 +28,6 @@ export const TIERS: Record<Tier, TierConfig> = {
     price: 29.9,
     stripePriceId: process.env.STRIPE_PRICE_PRO,
     model: "claude-sonnet-5",
-    modelLabel: "Claude Sonnet",
-    modelNote: "plus puissant",
     regenerationsPerMonth: 3,
     tagline: "Le plus populaire",
   },
@@ -43,8 +37,6 @@ export const TIERS: Record<Tier, TierConfig> = {
     price: 59.9,
     stripePriceId: process.env.STRIPE_PRICE_PREMIUM,
     model: "claude-opus-5",
-    modelLabel: "Claude Opus",
-    modelNote: "le plus puissant",
     regenerationsPerMonth: 10,
     tagline: "Le plus complet",
   },

@@ -20,7 +20,9 @@ function getAnthropic(): Anthropic {
     );
   }
 
-  cached = new Anthropic({ apiKey });
+  // Délai borné et aucune relance automatique : la fonction Vercel est tuée à 300 s (maxDuration), et une
+  // relance après un long délai la ferait dépasser. Un échec est enregistré proprement et se relance à la main.
+  cached = new Anthropic({ apiKey, timeout: 250_000, maxRetries: 0 });
   return cached;
 }
 
@@ -76,6 +78,7 @@ export async function generateForTier(
 ): Promise<GenerationResult> {
   const config = TIERS[tier];
 
+  const startedAt = Date.now();
   const message = await getAnthropic().messages.create({
     model: config.model,
     max_tokens: 12000,
@@ -86,6 +89,13 @@ export async function generateForTier(
         content: `Voici les réponses au questionnaire :\n\n${formatAnswers(answers)}`,
       },
     ],
+  });
+
+  console.log("[anthropic] réponse reçue", {
+    model: config.model,
+    seconds: Math.round((Date.now() - startedAt) / 1000),
+    outputTokens: message.usage.output_tokens,
+    stopReason: message.stop_reason,
   });
 
   if (message.stop_reason === "max_tokens") {
