@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Header } from "@/components/Header";
 import { SectionLabel } from "@/components/SectionLabel";
+import { AutoRefresh } from "@/components/AutoRefresh";
 import { OnboardingSteps } from "@/components/OnboardingSteps";
 import { RegenerateButton } from "@/components/RegenerateButton";
 import { createClient } from "@/lib/supabase/server";
@@ -12,7 +13,10 @@ function currentMonth(): string {
   return new Date().toISOString().slice(0, 7);
 }
 
-export default async function DashboardPage() {
+export default async function DashboardPage(props: PageProps<"/dashboard">) {
+  const searchParams = await props.searchParams;
+  const justPaid = searchParams.checkout === "success";
+
   const supabase = await createClient();
   const {
     data: { user },
@@ -29,7 +33,26 @@ export default async function DashboardPage() {
     .single();
 
   if (!profile?.subscription_tier || profile.subscription_status !== "active") {
-    redirect("/pricing");
+    // Retour de Stripe : le webhook qui active l'abonnement peut arriver quelques
+    // secondes après la redirection, on attend au lieu de renvoyer vers /pricing.
+    if (!justPaid) redirect("/pricing");
+
+    return (
+      <div className="w-full flex flex-col items-center">
+        <Header />
+        <AutoRefresh intervalMs={3000} />
+        <div className="w-full max-w-[640px] px-6 py-20 flex flex-col gap-4">
+          <SectionLabel>Paiement reçu</SectionLabel>
+          <h1 className="font-display font-semibold text-[32px] text-foreground m-0">
+            On active ton abonnement...
+          </h1>
+          <p className="text-muted">
+            Cette page se met à jour toute seule dès que Stripe a confirmé le paiement. Ta
+            génération démarre ensuite automatiquement.
+          </p>
+        </div>
+      </div>
+    );
   }
 
   const tier = profile.subscription_tier as Tier;
@@ -72,9 +95,10 @@ export default async function DashboardPage() {
 
         {!generation && (
           <div className="bg-surface border border-white/[0.08] rounded-2xl p-6 text-muted text-sm">
-            Ta génération arrive dans quelques instants — recharge la page dans une
-            minute. Si rien n&apos;apparaît, vérifie que le webhook Stripe est bien
-            configuré.
+            <AutoRefresh intervalMs={5000} />
+            Ta génération est en cours : elle peut prendre une à deux minutes, cette page se
+            met à jour toute seule. Si rien n&apos;apparaît au bout de quelques minutes, clique
+            sur « Régénérer » ci-dessus.
           </div>
         )}
 

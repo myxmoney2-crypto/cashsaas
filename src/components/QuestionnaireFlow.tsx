@@ -4,10 +4,10 @@ import { useState, useTransition } from "react";
 import {
   BLOCKS,
   INTRO_MESSAGE,
-  getValidation,
   getVisibleQuestions,
   type Question,
 } from "@/lib/questionnaire";
+import { getValidation } from "@/lib/validations";
 import type { QuestionnaireAnswers } from "@/lib/types";
 import { submitQuestionnaire } from "@/app/questionnaire/actions";
 import { FunnelSlider } from "@/components/FunnelSlider";
@@ -15,45 +15,113 @@ import { FunnelSlider } from "@/components/FunnelSlider";
 const inputClass =
   "w-full bg-surface border border-white/10 rounded-2xl px-5 py-4 text-foreground outline-none focus:border-accent";
 
+type Value = string | number | undefined;
+
+function ChoiceInput({
+  question,
+  value,
+  onChange,
+}: {
+  question: Question;
+  value: Value;
+  onChange: (value: string) => void;
+}) {
+  const choices = question.choices!;
+  const text = typeof value === "string" ? value : "";
+  const selected = question.multi ? text.split(", ").filter(Boolean) : [];
+  const [otherOpen, setOtherOpen] = useState(
+    Boolean(question.allowOther) && text !== "" && !choices.includes(text)
+  );
+
+  function toggleMulti(choice: string) {
+    let next: string[];
+    if (choice === question.exclusive) {
+      next = selected.includes(choice) ? [] : [choice];
+    } else {
+      const others = selected.filter((c) => c !== question.exclusive);
+      next = others.includes(choice) ? others.filter((c) => c !== choice) : [...others, choice];
+    }
+    onChange(choices.filter((c) => next.includes(c)).join(", "));
+  }
+
+  function pick(choice: string) {
+    if (question.multi) {
+      toggleMulti(choice);
+      return;
+    }
+    setOtherOpen(false);
+    onChange(choice);
+  }
+
+  const buttonClass = (active: boolean) =>
+    `text-left px-5 py-4 rounded-2xl border transition-colors ${
+      active
+        ? "border-accent bg-accent/10 text-foreground"
+        : "border-white/10 bg-surface text-muted hover:border-white/20"
+    }`;
+
+  const many = choices.length + (question.allowOther ? 1 : 0) >= 6 && !question.multi;
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div className={many ? "grid grid-cols-1 sm:grid-cols-2 gap-3" : "flex flex-col gap-3"}>
+        {choices.map((choice) => {
+          const active = question.multi ? selected.includes(choice) : !otherOpen && text === choice;
+          return (
+            <button
+              key={choice}
+              type="button"
+              aria-pressed={active}
+              onClick={() => pick(choice)}
+              className={buttonClass(active)}
+            >
+              {choice}
+            </button>
+          );
+        })}
+        {question.allowOther && (
+          <button
+            type="button"
+            aria-pressed={otherOpen}
+            onClick={() => {
+              if (!otherOpen) {
+                setOtherOpen(true);
+                onChange("");
+              }
+            }}
+            className={buttonClass(otherOpen)}
+          >
+            Autre
+          </button>
+        )}
+      </div>
+      {otherOpen && (
+        <input
+          type="text"
+          value={text}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder="Précise en quelques mots"
+          aria-label={`${question.prompt} — précision`}
+          autoFocus
+          className={inputClass}
+        />
+      )}
+    </div>
+  );
+}
+
 function QuestionInput({
   question,
   value,
   onChange,
 }: {
   question: Question;
-  value: string | number | undefined;
+  value: Value;
   onChange: (value: string | number) => void;
 }) {
   switch (question.type) {
     case "choice":
-      return (
-        <div className="flex flex-col gap-3">
-          {question.choices!.map((choice) => (
-            <button
-              key={choice}
-              type="button"
-              onClick={() => onChange(choice)}
-              className={`text-left px-5 py-4 rounded-2xl border transition-colors ${
-                value === choice
-                  ? "border-accent bg-accent/10 text-foreground"
-                  : "border-white/10 bg-surface text-muted hover:border-white/20"
-              }`}
-            >
-              {choice}
-            </button>
-          ))}
-        </div>
-      );
-    case "textarea":
-      return (
-        <textarea
-          value={(value as string) ?? ""}
-          onChange={(e) => onChange(e.target.value)}
-          placeholder={question.placeholder}
-          rows={4}
-          className={`${inputClass} resize-none`}
-        />
-      );
+      return <ChoiceInput question={question} value={value} onChange={onChange} />;
     case "slider":
       return (
         <FunnelSlider
@@ -65,30 +133,21 @@ function QuestionInput({
           label={question.prompt}
         />
       );
-    case "number":
+    case "textarea":
       return (
-        <input
-          type="number"
-          value={(value as number) ?? ""}
-          onChange={(e) => onChange(e.target.value === "" ? "" : Number(e.target.value))}
-          placeholder={question.placeholder}
-          className={inputClass}
-        />
-      );
-    default:
-      return (
-        <input
-          type="text"
-          value={(value as string) ?? ""}
+        <textarea
+          value={typeof value === "string" ? value : ""}
           onChange={(e) => onChange(e.target.value)}
           placeholder={question.placeholder}
-          className={inputClass}
+          aria-label={question.prompt}
+          rows={4}
+          className={`${inputClass} resize-none`}
         />
       );
   }
 }
 
-function isAnswered(value: string | number | undefined) {
+function isAnswered(value: Value) {
   if (value === undefined) return false;
   return typeof value === "string" ? value.trim() !== "" : true;
 }
@@ -99,6 +158,8 @@ export function QuestionnaireFlow() {
   const [answers, setAnswers] = useState<QuestionnaireAnswers>({});
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  // Graine propre à chaque passage : les phrases de validation ne sont pas les mêmes d'une session à l'autre.
+  const [seed] = useState(() => Math.random().toString(36).slice(2));
 
   if (!started) {
     return (
@@ -129,8 +190,8 @@ export function QuestionnaireFlow() {
   const isLast = index === questions.length - 1;
   const progress = ((index + 1) / questions.length) * 100;
   const answer = answers[question.id];
-  const hasAnswer = isAnswered(answer);
-  const validation = hasAnswer ? getValidation(question.id, answer) : null;
+  const answered = isAnswered(answer);
+  const validation = answered ? getValidation(question, answer, answers, seed) : null;
 
   function goNext() {
     if (!isLast) {
@@ -175,11 +236,15 @@ export function QuestionnaireFlow() {
         </div>
       </div>
 
-      <h2 className="font-display font-semibold text-2xl md:text-[28px] text-foreground leading-snug">
-        {question.prompt}
-      </h2>
+      <div className="flex flex-col gap-2">
+        <h2 className="font-display font-semibold text-2xl md:text-[28px] text-foreground leading-snug">
+          {question.prompt}
+        </h2>
+        {question.multi && <p className="text-sm text-muted-2">Plusieurs choix possibles</p>}
+      </div>
 
       <QuestionInput
+        key={question.id}
         question={question}
         value={answer}
         onChange={(value) => setAnswers((prev) => ({ ...prev, [question.id]: value }))}
@@ -205,7 +270,7 @@ export function QuestionnaireFlow() {
         <button
           type="button"
           onClick={goNext}
-          disabled={!hasAnswer || isPending}
+          disabled={(!answered && !question.optional) || isPending}
           className="bg-accent text-white px-8 py-3.5 rounded-full font-semibold text-sm disabled:opacity-40 hover:opacity-90 transition-opacity"
         >
           {isPending ? "Envoi..." : isLast ? "Envoyer mes réponses" : "Continuer →"}

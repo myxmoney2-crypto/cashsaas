@@ -1,4 +1,6 @@
-export type QuestionType = "text" | "textarea" | "choice" | "slider" | "number";
+export type QuestionType = "textarea" | "choice" | "slider";
+
+export type Answers = Record<string, string | number>;
 
 export type Question = {
   id: string;
@@ -6,11 +8,19 @@ export type Question = {
   type: QuestionType;
   prompt: string;
   choices?: string[];
+  /** Plusieurs choix possibles ; la réponse est stockée jointe par ", " (donc pas de virgule dans les choix). */
+  multi?: boolean;
+  /** Choix qui désélectionne tous les autres (multi uniquement). */
+  exclusive?: string;
+  /** Ajoute une option « Autre » qui ouvre un champ texte. */
+  allowOther?: boolean;
+  /** La question peut rester sans réponse. */
+  optional?: boolean;
   min?: number;
   max?: number;
   step?: number;
   placeholder?: string;
-  skipIf?: (answers: Record<string, string | number>) => boolean;
+  skipIf?: (answers: Answers) => boolean;
 };
 
 export type Block = {
@@ -19,15 +29,23 @@ export type Block = {
 };
 
 export const BLOCKS: Block[] = [
-  { id: 1, title: "Identité et passions" },
+  { id: 1, title: "Toi et tes ambitions" },
   { id: 2, title: "Situation actuelle" },
-  { id: 3, title: "Objectifs et budget" },
+  { id: 3, title: "Budget et rythme" },
   { id: 4, title: "Style de vie et personnalité" },
 ];
 
+// L'ordre des `choices` sert de clé aux phrases de validation (src/lib/validations.ts) :
+// si tu réordonnes ou ajoutes un choix, mets à jour les variantes correspondantes.
 export const QUESTIONS: Question[] = [
-  // Bloc 1 — Identité et passions
-  { id: "age", block: 1, type: "number", prompt: "Tu as quel âge ?", placeholder: "25" },
+  // Bloc 1 — Toi et tes ambitions (les questions chiffrées remontent tôt)
+  {
+    id: "age",
+    block: 1,
+    type: "choice",
+    prompt: "Tu as quel âge ?",
+    choices: ["18-24 ans", "25-29 ans", "30-34 ans", "35-44 ans", "45 ans et plus"],
+  },
   {
     id: "motivation",
     block: 1,
@@ -41,11 +59,43 @@ export const QUESTIONS: Question[] = [
     ],
   },
   {
+    id: "current_income",
+    block: 1,
+    type: "choice",
+    prompt: "Tu gagnes combien par mois actuellement ?",
+    choices: [
+      "Aucun revenu pour l'instant",
+      "Moins de 1 000 €",
+      "1 000 – 2 000 €",
+      "2 000 – 3 500 €",
+      "Plus de 3 500 €",
+    ],
+  },
+  {
+    id: "income_goal",
+    block: 1,
+    type: "slider",
+    prompt: "Combien tu vises par mois, à terme ?",
+    min: 1000,
+    max: 50000,
+    step: 500,
+  },
+  {
     id: "passion",
     block: 1,
-    type: "textarea",
+    type: "choice",
     prompt: "T'as une passion ou un domaine qui te capte vraiment ?",
-    placeholder: "Décris-le en quelques mots...",
+    choices: [
+      "Sport et bien-être",
+      "Cuisine et alimentation",
+      "Mode et beauté",
+      "Jeux vidéo et tech",
+      "Argent et business",
+      "Éducation et développement personnel",
+      "Voyage et lifestyle",
+      "Musique, art et création",
+    ],
+    allowOther: true,
   },
   {
     id: "profitable_uninterested",
@@ -73,13 +123,6 @@ export const QUESTIONS: Question[] = [
     choices: ["Étudiant", "Salarié", "Déjà entrepreneur", "Autre"],
   },
   {
-    id: "current_income",
-    block: 2,
-    type: "number",
-    prompt: "Tu gagnes combien par mois actuellement ?",
-    placeholder: "1500",
-  },
-  {
     id: "tried_before",
     block: 2,
     type: "choice",
@@ -90,48 +133,66 @@ export const QUESTIONS: Question[] = [
     id: "tried_before_result",
     block: 2,
     type: "textarea",
-    skipIf: (answers) => answers.tried_before === "Non",
     prompt: "Si oui, ça a donné quoi ?",
     placeholder: "Raconte brièvement...",
+    skipIf: (answers) => answers.tried_before === "Non",
   },
   {
     id: "invested_before",
     block: 2,
-    type: "text",
+    type: "choice",
     prompt: "T'as déjà investi de l'argent dans un projet avant ? Combien à peu près ?",
-    placeholder: "0 €, 500 €, ...",
+    choices: [
+      "Rien du tout",
+      "Moins de 100 €",
+      "100 – 500 €",
+      "500 – 2 000 €",
+      "Plus de 2 000 €",
+    ],
   },
   {
     id: "skills",
     block: 2,
     type: "choice",
     prompt: "T'as des compétences particulières que tu pourrais mettre à profit ?",
-    choices: ["Design", "Code", "Vente", "Création de contenu", "Autre"],
+    choices: [
+      "Design",
+      "Code",
+      "Vente",
+      "Création de contenu",
+      "Rédaction",
+      "Aucune en particulier",
+    ],
+    multi: true,
+    exclusive: "Aucune en particulier",
   },
 
-  // Bloc 3 — Objectifs et budget
-  {
-    id: "income_goal",
-    block: 3,
-    type: "slider",
-    prompt: "Combien tu vises par mois, à terme ?",
-    min: 1000,
-    max: 50000,
-    step: 500,
-  },
+  // Bloc 3 — Budget et rythme
   {
     id: "starting_budget",
     block: 3,
-    type: "number",
+    type: "choice",
     prompt: "Budget de départ pour te lancer là-dedans ?",
-    placeholder: "500",
+    choices: [
+      "Aucun budget",
+      "Moins de 100 €",
+      "100 – 500 €",
+      "500 – 2 000 €",
+      "Plus de 2 000 €",
+    ],
   },
   {
     id: "time_per_week",
     block: 3,
-    type: "number",
-    prompt: "Combien de temps tu peux vraiment y consacrer par semaine ? (heures)",
-    placeholder: "10",
+    type: "choice",
+    prompt: "Combien de temps tu peux vraiment y consacrer par semaine ?",
+    choices: [
+      "Moins de 5 h",
+      "5 à 10 h",
+      "10 à 20 h",
+      "20 à 35 h",
+      "Temps plein (35 h et plus)",
+    ],
   },
   {
     id: "speed_vs_solid",
@@ -147,7 +208,12 @@ export const QUESTIONS: Question[] = [
     type: "choice",
     prompt:
       "T'as déjà un moyen de toucher du monde (réseaux, audience, bouche à oreille) ou tu pars de zéro ?",
-    choices: ["J'ai déjà une audience", "Je pars de zéro"],
+    choices: [
+      "Je pars de zéro",
+      "Une petite audience (moins de 1 000 personnes)",
+      "Une audience moyenne (1 000 à 10 000 personnes)",
+      "Une grosse audience (plus de 10 000 personnes)",
+    ],
   },
   {
     id: "steady_vs_big",
@@ -160,9 +226,9 @@ export const QUESTIONS: Question[] = [
   {
     id: "timeline",
     block: 3,
-    type: "text",
+    type: "choice",
     prompt: "Sur combien de temps tu te donnes pour voir si ça marche, avant de passer à autre chose ?",
-    placeholder: "3 mois, 6 mois, 1 an...",
+    choices: ["1 mois", "3 mois", "6 mois", "1 an", "Plus d'un an"],
   },
 
   // Bloc 4 — Style de vie et personnalité
@@ -183,17 +249,31 @@ export const QUESTIONS: Question[] = [
   {
     id: "would_quit_reason",
     block: 4,
-    type: "textarea",
+    type: "choice",
     prompt: "Qu'est-ce qui te ferait abandonner un projet en cours de route ?",
-    placeholder: "...",
+    choices: [
+      "Le manque de résultats rapides",
+      "Le manque de temps",
+      "Le manque d'argent",
+      "La perte de motivation",
+      "Le doute sur mes compétences",
+    ],
+    allowOther: true,
   },
   {
     id: "time_constraints",
     block: 4,
-    type: "textarea",
+    type: "choice",
     prompt:
       "T'as un truc dans ta vie de tous les jours (études, taf, famille) qui va te prendre beaucoup de temps en parallèle ?",
-    placeholder: "...",
+    choices: [
+      "Mes études",
+      "Un travail à temps plein",
+      "Ma famille",
+      "Un peu de tout ça",
+      "Rien de particulier",
+    ],
+    allowOther: true,
   },
   {
     id: "tech_comfort",
@@ -212,98 +292,33 @@ export const QUESTIONS: Question[] = [
   {
     id: "existing_tools",
     block: 4,
-    type: "textarea",
+    type: "choice",
     prompt:
-      "T'as déjà des outils ou comptes que tu utilises régulièrement (réseaux sociaux, logiciels) qu'on pourrait exploiter direct ?",
-    placeholder: "...",
+      "T'as déjà des outils ou comptes que tu utilises régulièrement qu'on pourrait exploiter direct ?",
+    choices: [
+      "Instagram",
+      "TikTok",
+      "YouTube",
+      "Une newsletter",
+      "Un site ou un blog",
+      "Aucun en particulier",
+    ],
+    multi: true,
+    exclusive: "Aucun en particulier",
   },
   {
     id: "anything_else",
     block: 4,
     type: "textarea",
     prompt: "Y'a un truc que t'as pas pu dire dans les questions précédentes et qui compte pour toi ?",
-    placeholder: "...",
+    placeholder: "Facultatif",
+    optional: true,
   },
 ];
 
 export const INTRO_MESSAGE =
   "Avant de te générer ton SaaS sur mesure, on a besoin de mieux te connaître — plus tu es précis, plus le résultat sera collé à toi. Ça prend 3-4 minutes.";
 
-type Answer = string | number;
-type Validation = string | ((answer: Answer) => string);
-
-// Ton sobre et motivant, sans jamais comparer à une personne ou un archétype.
-const VALIDATIONS: Record<string, Validation> = {
-  age: (a) =>
-    Number(a) >= 36
-      ? "Ton âge, c'est de l'expérience en plus, un vrai atout pour se lancer."
-      : "Cet âge est un vrai avantage pour se lancer, t'as le temps de ton côté.",
-  motivation:
-    "Cette motivation-là, c'est exactement celle qui pousse les gens à tenir dans la durée.",
-  passion: "Cette niche a un vrai potentiel en ce moment, bon choix.",
-  profitable_uninterested: (a) =>
-    a === "Je passe mon tour"
-      ? "Choisir un sujet qui te parle, c'est ce qui aide à tenir dans la durée."
-      : "Cette flexibilité, c'est un vrai atout — ça élargit beaucoup les options possibles.",
-  on_camera: (a) =>
-    a === "À l'aise en vidéo"
-      ? "Être à l'aise devant la caméra ouvre beaucoup de formats pour se faire connaître."
-      : "Rester en retrait, ça marche très bien aussi — on adaptera le plan en conséquence.",
-
-  current_situation:
-    "Ta situation ne va pas t'empêcher d'avancer là-dessus, au contraire, c'est un bon point de départ.",
-  current_income: "Ok, on en tient compte pour la suite.",
-  tried_before: (a) =>
-    a === "Non"
-      ? "Pas de souci : tu pars sans mauvaises habitudes à défaire, c'est un bon point de départ."
-      : "L'expérience compte, même quand ça a pas marché — on apprend de ça.",
-  tried_before_result:
-    "L'expérience compte, même quand ça a pas marché — on apprend de ça.",
-  invested_before: (a) =>
-    /^\s*(0|aucun|rien|non|jamais)/i.test(String(a))
-      ? "Pas besoin d'avoir déjà investi pour bien démarrer, on part de là où tu en es."
-      : "Ça montre que t'es prêt à mettre les moyens, c'est un bon signal.",
-  skills: "Ces compétences vont vraiment servir, on va s'appuyer dessus.",
-
-  income_goal: "Objectif noté — on construit le plan pour y aller étape par étape.",
-  starting_budget: (a) =>
-    Number(a) < 100
-      ? "Démarrer avec peu, c'est tout à fait possible — on s'adapte à ton budget."
-      : "Ce budget permet de bien démarrer, on s'en sert au mieux.",
-  time_per_week: "Le temps dispo décide du rythme, on va caler le plan dessus.",
-  speed_vs_solid: "Bien noté, ça oriente le type d'idée qu'on va te proposer.",
-  audience: (a) =>
-    a === "Je pars de zéro"
-      ? "Partir de zéro, ça se fait très bien avec le bon plan."
-      : "Avoir déjà une audience, c'est un vrai coup d'avance.",
-  steady_vs_big: "Compris, on choisit un modèle cohérent avec ça.",
-  timeline:
-    "Se fixer un horizon clair, c'est ce qui permet de mesurer ses progrès.",
-
-  solo_vs_pushed:
-    "Bon à savoir, le plan sera pensé pour ta façon de travailler.",
-  instinct_vs_calc:
-    "Les deux approches ont leurs forces, on s'adapte à la tienne.",
-  would_quit_reason:
-    "Merci pour cette franchise, ça nous aide à prévoir des garde-fous.",
-  time_constraints:
-    "On en tient compte pour que le plan reste tenable au quotidien.",
-  tech_comfort: "Parfait, on ajuste le niveau technique en conséquence.",
-  solo_vs_partner:
-    "Noté, ça influence la forme que peut prendre le projet.",
-  existing_tools: "Ce que tu utilises déjà peut devenir un vrai raccourci.",
-  anything_else:
-    "Merci d'avoir pris le temps, c'est ce qui rend le résultat vraiment personnel.",
-};
-
-export function getValidation(questionId: string, answer: Answer): string {
-  const validation = VALIDATIONS[questionId];
-  if (!validation) return "Noté.";
-  return typeof validation === "function" ? validation(answer) : validation;
-}
-
-export function getVisibleQuestions(
-  answers: Record<string, string | number>
-): Question[] {
+export function getVisibleQuestions(answers: Answers): Question[] {
   return QUESTIONS.filter((q) => !q.skipIf?.(answers));
 }

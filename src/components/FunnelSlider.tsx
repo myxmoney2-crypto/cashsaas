@@ -83,7 +83,7 @@ export function FunnelSlider({
   }
 
   return (
-    <div className="flex items-stretch gap-6">
+    <div className="flex items-stretch gap-4 sm:gap-6">
       <div
         role="slider"
         tabIndex={0}
@@ -103,7 +103,7 @@ export function FunnelSlider({
         <svg
           ref={svgRef}
           viewBox={`0 0 ${W} ${H}`}
-          className="w-[190px] sm:w-[230px] h-auto block"
+          className="w-[150px] sm:w-[230px] h-auto block"
           aria-hidden="true"
         >
           <defs>
@@ -152,10 +152,10 @@ export function FunnelSlider({
         </svg>
       </div>
 
-      <div className="flex flex-col justify-between py-1 min-w-[120px]">
+      <div className="flex flex-col justify-between py-1 min-w-0">
         <span className="text-xs text-muted-2">{euro(max)}</span>
         <div>
-          <div className="font-display text-3xl font-semibold text-foreground leading-none">
+          <div className="font-display text-2xl sm:text-3xl font-semibold text-foreground leading-none">
             {hasValue ? euro(value) : "— €"}
           </div>
           <div className="text-xs text-muted-2 mt-1.5">
