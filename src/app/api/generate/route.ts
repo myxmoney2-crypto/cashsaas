@@ -22,11 +22,12 @@ export async function POST() {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("subscription_tier, subscription_status")
+    .select("subscription_tier, subscription_status, is_admin")
     .eq("id", user.id)
     .single();
 
   const tier = profile?.subscription_tier as Tier | null;
+  const isAdmin = Boolean(profile?.is_admin);
 
   if (!tier || profile?.subscription_status !== "active") {
     return NextResponse.json({ error: "Abonnement inactif" }, { status: 403 });
@@ -43,7 +44,7 @@ export async function POST() {
   const used = usage?.count ?? 0;
   const cap = TIERS[tier].regenerationsPerMonth;
 
-  if (used >= cap) {
+  if (!isAdmin && used >= cap) {
     return NextResponse.json(
       { error: `Plafond de régénérations atteint pour ce mois (${cap}).` },
       { status: 429 }
@@ -84,6 +85,8 @@ export async function POST() {
     prompt_text: JSON.stringify(latestResponse.answers),
     result,
   });
+
+  if (isAdmin) return NextResponse.json({ result });
 
   await service.from("regenerations_usage").upsert(
     { user_id: user.id, month, count: used + 1 },

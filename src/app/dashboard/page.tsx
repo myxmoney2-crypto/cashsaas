@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { Header } from "@/components/Header";
 import { SectionLabel } from "@/components/SectionLabel";
 import { AutoRefresh } from "@/components/AutoRefresh";
+import { ClearStoredAnswers } from "@/components/ClearStoredAnswers";
 import { OnboardingSteps } from "@/components/OnboardingSteps";
 import { RegenerateButton } from "@/components/RegenerateButton";
 import { createClient } from "@/lib/supabase/server";
@@ -36,7 +37,7 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("subscription_tier, subscription_status")
+    .select("subscription_tier, subscription_status, is_admin")
     .eq("id", user.id)
     .single();
 
@@ -49,6 +50,7 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
       <div className="w-full flex flex-col items-center">
         <Header />
         <AutoRefresh intervalMs={3000} />
+        {justPaid && <ClearStoredAnswers />}
         <div className="w-full max-w-[640px] px-6 py-20 flex flex-col gap-4">
           <SectionLabel>Paiement reçu</SectionLabel>
           <h1 className="font-display font-semibold text-[32px] text-foreground m-0">
@@ -64,6 +66,7 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
   }
 
   const tier = profile.subscription_tier as Tier;
+  const isAdmin = Boolean(profile.is_admin);
 
   const { data: latest } = await supabase
     .from("generations")
@@ -99,10 +102,14 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
   return (
     <div className="w-full flex flex-col items-center">
       <Header />
+      {justPaid && <ClearStoredAnswers />}
       <div className="w-full max-w-[900px] px-6 py-14 flex flex-col gap-12">
         <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
           <div>
-            <SectionLabel>Palier {TIERS[tier].name}</SectionLabel>
+            <SectionLabel>
+              Palier {TIERS[tier].name}
+              {isAdmin ? " · admin" : ""}
+            </SectionLabel>
             <h1 className="font-display font-semibold text-[32px] text-foreground m-0">
               {result ? result.idea_name : failed ? "La génération a échoué" : "Génération en cours..."}
             </h1>
@@ -110,7 +117,7 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
               <p className="text-muted mt-2 max-w-[560px]">{result.pitch}</p>
             )}
           </div>
-          <RegenerateButton remaining={remaining} />
+          <RegenerateButton remaining={isAdmin ? null : remaining} />
         </div>
 
         {inProgress && (
@@ -206,6 +213,12 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
           </div>
           <OnboardingSteps />
         </section>
+
+        {isAdmin && (
+          <Link href="/questionnaire" className="text-sm text-accent hover:opacity-80 w-fit">
+            Refaire un test (nouveau questionnaire) →
+          </Link>
+        )}
 
         <Link href="/" className="text-sm text-muted-2 hover:text-foreground w-fit">
           ← Retour à l&apos;accueil

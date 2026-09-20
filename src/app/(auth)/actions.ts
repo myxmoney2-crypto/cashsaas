@@ -3,10 +3,16 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 
+// Redirection interne uniquement : un `next` absolu ou en `//` permettrait d'envoyer l'utilisateur
+// vers un site tiers juste après sa connexion.
+function safeNext(value: string): string {
+  return value.startsWith("/") && !value.startsWith("//") ? value : "/dashboard";
+}
+
 export async function login(formData: FormData) {
   const email = String(formData.get("email") ?? "");
   const password = String(formData.get("password") ?? "");
-  const next = String(formData.get("next") ?? "/questionnaire");
+  const next = safeNext(String(formData.get("next") ?? "/dashboard"));
 
   const supabase = await createClient();
   const { error } = await supabase.auth.signInWithPassword({ email, password });

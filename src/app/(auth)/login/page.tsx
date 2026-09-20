@@ -5,7 +5,8 @@ import { login } from "../actions";
 export default async function LoginPage(props: PageProps<"/login">) {
   const searchParams = await props.searchParams;
   const error = typeof searchParams.error === "string" ? searchParams.error : null;
-  const next = typeof searchParams.next === "string" ? searchParams.next : "/questionnaire";
+  const next = typeof searchParams.next === "string" ? searchParams.next : "/dashboard";
+  const notice = searchParams.notice === "confirm";
 
   return (
     <div className="w-full flex flex-col items-center">
@@ -17,6 +18,13 @@ export default async function LoginPage(props: PageProps<"/login">) {
         <p className="text-muted text-sm mb-8">
           Retrouve ton idée, ton code et tes régénérations.
         </p>
+
+        {notice && (
+          <div className="mb-6 text-sm text-foreground bg-accent/10 border border-accent/30 rounded-xl px-4 py-3">
+            Vérifie ta boîte mail pour confirmer ton compte, puis connecte-toi ici : tes réponses sont
+            conservées.
+          </div>
+        )}
 
         {error && (
           <div className="mb-6 text-sm text-red-400 bg-red-950/40 border border-red-900 rounded-xl px-4 py-3">

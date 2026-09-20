@@ -7,11 +7,12 @@ const UNIQUE_VIOLATION = "23505";
 /**
  * Crée la ligne « pending » de la génération initiale. Retourne null si cette session
  * Stripe a déjà été traitée (événement rejoué) : l'appelant ne doit alors rien relancer.
+ * checkoutSessionId est null pour un contournement admin (pas de paiement, pas de doublon possible).
  * Toute autre erreur est relancée pour que Stripe réessaie l'événement.
  */
 export async function createPendingGeneration(
   supabase: SupabaseClient,
-  params: { userId: string; tier: Tier; checkoutSessionId: string }
+  params: { userId: string; tier: Tier; checkoutSessionId: string | null }
 ): Promise<string | null> {
   const { data, error } = await supabase
     .from("generations")

@@ -12,6 +12,7 @@ export type Profile = {
   stripe_customer_id: string | null;
   subscription_tier: Tier | null;
   subscription_status: SubscriptionStatus;
+  is_admin: boolean;
   created_at: string;
 };
 

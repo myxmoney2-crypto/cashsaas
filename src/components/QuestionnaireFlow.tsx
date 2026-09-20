@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
 import {
   BLOCKS,
   INTRO_MESSAGE,
@@ -8,8 +9,8 @@ import {
   type Question,
 } from "@/lib/questionnaire";
 import { getValidation } from "@/lib/validations";
+import { saveStoredAnswers } from "@/lib/stored-answers";
 import type { QuestionnaireAnswers } from "@/lib/types";
-import { submitQuestionnaire } from "@/app/questionnaire/actions";
 import { FunnelSlider } from "@/components/FunnelSlider";
 
 const inputClass =
@@ -156,8 +157,7 @@ export function QuestionnaireFlow() {
   const [started, setStarted] = useState(false);
   const [index, setIndex] = useState(0);
   const [answers, setAnswers] = useState<QuestionnaireAnswers>({});
-  const [error, setError] = useState<string | null>(null);
-  const [isPending, startTransition] = useTransition();
+  const router = useRouter();
   // Graine propre à chaque passage : les phrases de validation ne sont pas les mêmes d'une session à l'autre.
   const [seed] = useState(() => Math.random().toString(36).slice(2));
 
@@ -198,18 +198,14 @@ export function QuestionnaireFlow() {
       setIndex((i) => i + 1);
       return;
     }
-    setError(null);
-    // On n'envoie que les questions réellement posées (pas une réponse périmée
-    // à une question sautée après un changement de réponse).
+    // Pas de compte à ce stade : on garde les réponses dans le navigateur et on passe au paywall,
+    // où le compte se crée en même temps que le choix du palier et le paiement.
+    // On n'envoie que les questions réellement posées (pas une réponse périmée à une question sautée).
     const asked = Object.fromEntries(
       questions.filter((q) => isAnswered(answers[q.id])).map((q) => [q.id, answers[q.id]])
     );
-    startTransition(async () => {
-      const result = await submitQuestionnaire(asked);
-      if (result?.error) {
-        setError("Une erreur est survenue, réessaie.");
-      }
-    });
+    saveStoredAnswers(asked);
+    router.push("/pricing");
   }
 
   function goBack() {
@@ -257,7 +253,6 @@ export function QuestionnaireFlow() {
           </p>
         )}
       </div>
-      {error && <p className="text-sm text-red-400">{error}</p>}
 
       <div className="flex items-center justify-between pt-2">
         <button
@@ -270,10 +265,10 @@ export function QuestionnaireFlow() {
         <button
           type="button"
           onClick={goNext}
-          disabled={(!answered && !question.optional) || isPending}
+          disabled={!answered && !question.optional}
           className="bg-accent text-white px-8 py-3.5 rounded-full font-semibold text-sm disabled:opacity-40 hover:opacity-90 transition-opacity"
         >
-          {isPending ? "Envoi..." : isLast ? "Envoyer mes réponses" : "Continuer →"}
+          {isLast ? "Envoyer mes réponses" : "Continuer →"}
         </button>
       </div>
     </div>

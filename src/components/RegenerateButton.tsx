@@ -6,7 +6,8 @@ import { useState, useTransition } from "react";
 export function RegenerateButton({
   remaining,
 }: {
-  remaining: number;
+  /** null = illimité (admin) */
+  remaining: number | null;
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -29,14 +30,16 @@ export function RegenerateButton({
     <div className="flex flex-col gap-2">
       <button
         onClick={handleClick}
-        disabled={isPending || remaining <= 0}
+        disabled={isPending || (remaining !== null && remaining <= 0)}
         className="bg-accent text-white px-6 py-3 rounded-full font-semibold text-sm disabled:opacity-40 hover:opacity-90 transition-opacity w-fit"
       >
         {isPending
           ? "Génération en cours..."
-          : remaining <= 0
-            ? "Plafond atteint ce mois-ci"
-            : `Régénérer (${remaining} restante${remaining > 1 ? "s" : ""})`}
+          : remaining === null
+            ? "Régénérer (admin, sans limite)"
+            : remaining <= 0
+              ? "Plafond atteint ce mois-ci"
+              : `Régénérer (${remaining} restante${remaining > 1 ? "s" : ""})`}
       </button>
       {error && <p className="text-sm text-red-400">{error}</p>}
     </div>

@@ -33,8 +33,8 @@ message d'erreur s'affiche dans l'UI).
 
 ## 3. Base de données
 
-Exécute dans l'ordre `supabase/migrations/0001_init.sql` puis
-`supabase/migrations/0002_generation_status.sql` dans le SQL Editor de ton projet
+Exécute dans l'ordre `supabase/migrations/0001_init.sql`,
+`0002_generation_status.sql` puis `0003_admin_and_lockdown.sql` dans le SQL Editor de ton projet
 Supabase (ou `supabase db push` si tu utilises la CLI). Ça crée :
 
 - `profiles` — un enregistrement par utilisateur (créé automatiquement à l'inscription)
@@ -66,10 +66,29 @@ stripe listen --forward-to localhost:3000/api/webhooks/stripe
 
 ## 5. Parcours
 
-`/` (landing) → `/signup` ou `/login` → `/questionnaire` (26 questions, 4 blocs) →
-`/pricing` (choix du palier, Stripe Checkout) → webhook Stripe déclenche la
-génération IA (Haiku/Sonnet/Opus selon le palier) → `/dashboard` (idée, code,
-plan des 30 jours, étapes de déploiement guidé sur les comptes du client).
+`/` (landing) → `/questionnaire` (26 questions, **sans compte**) → « Envoyer mes réponses » garde
+les réponses dans le navigateur (localStorage, 7 jours) et ouvre `/pricing`. Là, en **un seul
+formulaire**, la personne crée son compte (ou se connecte), choisit son palier et est envoyée vers
+Stripe Checkout ; ses réponses sont enregistrées sur son compte à ce moment-là. Le webhook Stripe
+déclenche la génération IA en arrière-plan (Haiku/Sonnet/Opus selon le palier) → `/dashboard`
+(idée, code, plan des 30 jours, étapes de déploiement).
+
+Réglage Supabase conseillé : Authentication → Providers → Email → désactiver **« Confirm email »**,
+pour que le compte soit utilisable tout de suite (sinon la personne doit d'abord cliquer un lien
+reçu par email ; ses réponses sont conservées dans les deux cas).
+
+## Accès admin (tester sans payer)
+
+Un compte admin contourne le paywall : sur `/pricing`, les boutons deviennent « Générer avec … (test) »,
+la génération démarre tout de suite sans Stripe, et la régénération n'a pas de quota. Pour te passer
+admin, crée ton compte normalement, puis dans le SQL Editor de Supabase :
+
+```sql
+update public.profiles set is_admin = true where email = 'ton@email.com';
+```
+
+Le drapeau ne peut se modifier que depuis Supabase (migration `0003_admin_and_lockdown.sql` : plus
+aucune écriture directe sur `profiles` depuis le navigateur).
 
 ## Structure
 
