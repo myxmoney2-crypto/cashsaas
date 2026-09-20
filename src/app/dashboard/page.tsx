@@ -7,6 +7,7 @@ import { ClearStoredAnswers } from "@/components/ClearStoredAnswers";
 import { OnboardingSteps } from "@/components/OnboardingSteps";
 import { RegenerateButton } from "@/components/RegenerateButton";
 import { createClient } from "@/lib/supabase/server";
+import { openBillingPortal } from "./actions";
 import { TIERS } from "@/lib/tiers";
 import type { Generation, GenerationResult, Tier } from "@/lib/types";
 
@@ -25,6 +26,8 @@ function isExpired(createdAt: string): boolean {
 export default async function DashboardPage(props: PageProps<"/dashboard">) {
   const searchParams = await props.searchParams;
   const justPaid = searchParams.checkout === "success";
+  const billingError =
+    typeof searchParams.billing_error === "string" ? searchParams.billing_error : null;
 
   const supabase = await createClient();
   const {
@@ -37,7 +40,7 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("subscription_tier, subscription_status, is_admin")
+    .select("subscription_tier, subscription_status, is_admin, stripe_customer_id")
     .eq("id", user.id)
     .single();
 
@@ -67,6 +70,8 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
 
   const tier = profile.subscription_tier as Tier;
   const isAdmin = Boolean(profile.is_admin);
+  // Les comptes admin (tests) n'ont pas d'abonnement Stripe : pas de portail.
+  const canManageBilling = !isAdmin && Boolean(profile.stripe_customer_id);
 
   const { data: latest } = await supabase
     .from("generations")
@@ -117,8 +122,33 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
               <p className="text-muted mt-2 max-w-[560px]">{result.pitch}</p>
             )}
           </div>
-          <RegenerateButton remaining={isAdmin ? null : remaining} />
+          <div className="flex flex-col items-start gap-3">
+            <RegenerateButton remaining={isAdmin ? null : remaining} />
+            {canManageBilling && (
+              <form action={openBillingPortal}>
+                <button
+                  type="submit"
+                  className="px-6 py-3 rounded-full font-semibold text-sm border border-white/20 text-foreground hover:bg-white/5 transition-colors"
+                >
+                  Gérer mon abonnement
+                </button>
+              </form>
+            )}
+          </div>
         </div>
+
+        {billingError && (
+          <div className="text-sm text-red-400 bg-red-950/40 border border-red-900 rounded-xl px-4 py-3 -mt-6">
+            {billingError}
+          </div>
+        )}
+        {canManageBilling && !billingError && (
+          <p className="text-sm text-muted -mt-6 max-w-[560px]">
+            « Gérer mon abonnement » ouvre le portail sécurisé de Stripe : tu peux y résilier en quelques
+            clics, sans frais (la résiliation prend effet à la fin de la période payée), changer de carte et
+            télécharger tes factures.
+          </p>
+        )}
 
         {inProgress && (
           <div className="bg-surface border border-white/[0.08] rounded-2xl p-6 text-muted text-sm">
