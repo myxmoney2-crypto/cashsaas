@@ -39,13 +39,18 @@ export type GenerationResult = {
   acquisition_plan: { week: number; title: string; description: string }[];
 };
 
+export type GenerationStatus = "pending" | "done" | "failed";
+
 export type Generation = {
   id: string;
   user_id: string;
   tier: Tier;
-  idea_name: string;
-  niche: string;
-  prompt_text: string;
+  status: GenerationStatus;
+  error: string | null;
+  checkout_session_id: string | null;
+  idea_name: string | null;
+  niche: string | null;
+  prompt_text: string | null;
   result: GenerationResult | null;
   code_repo_url: string | null;
   created_at: string;

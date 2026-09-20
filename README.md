@@ -32,12 +32,14 @@ message d'erreur s'affiche dans l'UI).
 
 ## 3. Base de données
 
-Exécute `supabase/migrations/0001_init.sql` dans le SQL Editor de ton projet
+Exécute dans l'ordre `supabase/migrations/0001_init.sql` puis
+`supabase/migrations/0002_generation_status.sql` dans le SQL Editor de ton projet
 Supabase (ou `supabase db push` si tu utilises la CLI). Ça crée :
 
 - `profiles` — un enregistrement par utilisateur (créé automatiquement à l'inscription)
 - `questionnaire_responses` — les 26 réponses en JSON
-- `generations` — idée + code + plan générés
+- `generations` — idée + code + plan générés, avec un `status` (pending / done / failed)
+  et le `checkout_session_id` Stripe qui sert d'anti-doublon
 - `regenerations_usage` — compteur mensuel pour plafonner les régénérations par palier
 
 RLS est activé partout ; chacun ne voit que ses propres lignes. Le webhook Stripe
@@ -49,6 +51,11 @@ et la génération passent par `SUPABASE_SERVICE_ROLE_KEY`, qui contourne RLS.
 npm install
 npm run dev
 ```
+
+Le webhook Stripe (`/api/webhooks/stripe`) doit écouter `checkout.session.completed`,
+`customer.subscription.updated` et `customer.subscription.deleted`. Il répond tout de
+suite à Stripe et lance la génération IA en arrière-plan (jusqu'à 5 min) ; un
+événement rejoué ne relance pas de deuxième génération.
 
 Pour tester le webhook Stripe en local :
 

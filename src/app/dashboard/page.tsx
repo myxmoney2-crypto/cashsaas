@@ -13,6 +13,14 @@ function currentMonth(): string {
   return new Date().toISOString().slice(0, 7);
 }
 
+// Une génération « pending » depuis plus longtemps que ça est considérée comme perdue
+// (fonction interrompue) : on propose de relancer au lieu d'attendre indéfiniment.
+const PENDING_TIMEOUT_MS = 6 * 60 * 1000;
+
+function isExpired(createdAt: string): boolean {
+  return Date.now() - new Date(createdAt).getTime() > PENDING_TIMEOUT_MS;
+}
+
 export default async function DashboardPage(props: PageProps<"/dashboard">) {
   const searchParams = await props.searchParams;
   const justPaid = searchParams.checkout === "success";
@@ -57,13 +65,22 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
 
   const tier = profile.subscription_tier as Tier;
 
-  const { data: generation } = await supabase
+  const { data: latest } = await supabase
     .from("generations")
-    .select("*")
+    .select("id, status, created_at, code_repo_url")
     .eq("user_id", user.id)
     .order("created_at", { ascending: false })
     .limit(1)
-    .maybeSingle<Generation>();
+    .maybeSingle<Pick<Generation, "id" | "status" | "created_at" | "code_repo_url">>();
+
+  const { data: done } = await supabase
+    .from("generations")
+    .select("result, code_repo_url")
+    .eq("user_id", user.id)
+    .eq("status", "done")
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle<Pick<Generation, "result" | "code_repo_url">>();
 
   const { data: usage } = await supabase
     .from("regenerations_usage")
@@ -74,7 +91,10 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
 
   const cap = TIERS[tier].regenerationsPerMonth;
   const remaining = Math.max(0, cap - (usage?.count ?? 0));
-  const result = generation?.result as GenerationResult | null;
+  const result = (done?.result ?? null) as GenerationResult | null;
+  const failed =
+    latest?.status === "failed" || (latest?.status === "pending" && isExpired(latest.created_at));
+  const inProgress = !failed && (!latest || latest.status === "pending");
 
   return (
     <div className="w-full flex flex-col items-center">
@@ -84,7 +104,7 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
           <div>
             <SectionLabel>Palier {TIERS[tier].name}</SectionLabel>
             <h1 className="font-display font-semibold text-[32px] text-foreground m-0">
-              {result ? result.idea_name : "Génération en cours..."}
+              {result ? result.idea_name : failed ? "La génération a échoué" : "Génération en cours..."}
             </h1>
             {result && (
               <p className="text-muted mt-2 max-w-[560px]">{result.pitch}</p>
@@ -93,12 +113,18 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
           <RegenerateButton remaining={remaining} />
         </div>
 
-        {!generation && (
+        {inProgress && (
           <div className="bg-surface border border-white/[0.08] rounded-2xl p-6 text-muted text-sm">
             <AutoRefresh intervalMs={5000} />
-            Ta génération est en cours : elle peut prendre une à deux minutes, cette page se
-            met à jour toute seule. Si rien n&apos;apparaît au bout de quelques minutes, clique
-            sur « Régénérer » ci-dessus.
+            {result ? "Une nouvelle génération est en cours : " : "Ta génération est en cours : "}
+            elle peut prendre une à deux minutes, cette page se met à jour toute seule.
+          </div>
+        )}
+
+        {failed && (
+          <div className="bg-red-950/40 border border-red-900 rounded-2xl p-6 text-sm text-red-300">
+            La génération n&apos;a pas abouti. Clique sur « Régénérer » ci-dessus pour relancer : un
+            essai raté ne consomme pas ton quota du mois.
           </div>
         )}
 
@@ -178,7 +204,7 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
               Déploie sur tes propres comptes
             </h2>
           </div>
-          <OnboardingSteps codeRepoUrl={generation?.code_repo_url} />
+          <OnboardingSteps codeRepoUrl={done?.code_repo_url ?? latest?.code_repo_url} />
         </section>
 
         <Link href="/" className="text-sm text-muted-2 hover:text-foreground w-fit">

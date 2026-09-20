@@ -1,10 +1,13 @@
 import type Stripe from "stripe";
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 import { getStripe } from "@/lib/stripe";
 import { createServiceRoleClient } from "@/lib/supabase/server";
-import { generateForTier } from "@/lib/anthropic";
+import { createPendingGeneration, runGeneration } from "@/lib/generation";
 import { tierFromPriceId } from "@/lib/tiers";
 import type { Tier } from "@/lib/types";
+
+// La génération tourne dans after() : elle dispose de toute cette durée sans bloquer la réponse à Stripe.
+export const maxDuration = 300;
 
 export async function POST(request: Request) {
   const body = await request.text();
@@ -40,7 +43,16 @@ export async function POST(request: Request) {
         .update({ subscription_tier: tier, subscription_status: "active" })
         .eq("id", userId);
 
-      await triggerGeneration(supabase, userId, tier);
+      // Ligne « pending » créée avant de répondre : c'est elle qui protège des doublons
+      // (Stripe peut renvoyer le même événement) ; l'appel IA part ensuite en arrière-plan.
+      const generationId = await createPendingGeneration(supabase, {
+        userId,
+        tier,
+        checkoutSessionId: session.id,
+      });
+      if (generationId) {
+        after(() => runGeneration(supabase, generationId, userId, tier));
+      }
       break;
     }
 
@@ -80,35 +92,4 @@ export async function POST(request: Request) {
   }
 
   return NextResponse.json({ received: true });
-}
-
-async function triggerGeneration(
-  supabase: ReturnType<typeof createServiceRoleClient>,
-  userId: string,
-  tier: Tier
-) {
-  const { data: latestResponse } = await supabase
-    .from("questionnaire_responses")
-    .select("answers")
-    .eq("user_id", userId)
-    .order("submitted_at", { ascending: false })
-    .limit(1)
-    .single();
-
-  if (!latestResponse) return;
-
-  try {
-    const result = await generateForTier(tier, latestResponse.answers);
-
-    await supabase.from("generations").insert({
-      user_id: userId,
-      tier,
-      idea_name: result.idea_name,
-      niche: result.niche,
-      prompt_text: JSON.stringify(latestResponse.answers),
-      result,
-    });
-  } catch (err) {
-    console.error("Generation failed for user", userId, err);
-  }
 }

@@ -74,7 +74,7 @@ export async function generateForTier(
 
   const message = await getAnthropic().messages.create({
     model: config.model,
-    max_tokens: 8000,
+    max_tokens: 12000,
     system: SYSTEM_PROMPT,
     messages: [
       {
@@ -83,6 +83,10 @@ export async function generateForTier(
       },
     ],
   });
+
+  if (message.stop_reason === "max_tokens") {
+    throw new Error("Réponse du modèle tronquée (max_tokens atteint)");
+  }
 
   const textBlock = message.content.find((block) => block.type === "text");
   if (!textBlock || textBlock.type !== "text") {

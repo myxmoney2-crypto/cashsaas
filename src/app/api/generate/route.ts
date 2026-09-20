@@ -4,6 +4,8 @@ import { generateForTier } from "@/lib/anthropic";
 import { TIERS } from "@/lib/tiers";
 import type { Tier } from "@/lib/types";
 
+export const maxDuration = 300;
+
 function currentMonth(): string {
   return new Date().toISOString().slice(0, 7); // 'YYYY-MM'
 }
@@ -60,13 +62,23 @@ export async function POST() {
     return NextResponse.json({ error: "Questionnaire introuvable" }, { status: 404 });
   }
 
-  const result = await generateForTier(tier, latestResponse.answers);
+  let result;
+  try {
+    result = await generateForTier(tier, latestResponse.answers);
+  } catch (err) {
+    console.error("Regeneration failed", { userId: user.id, err });
+    return NextResponse.json(
+      { error: "La génération a échoué, réessaie dans un instant (ça ne compte pas dans ton quota)." },
+      { status: 502 }
+    );
+  }
 
   const service = createServiceRoleClient();
 
   await service.from("generations").insert({
     user_id: user.id,
     tier,
+    status: "done",
     idea_name: result.idea_name,
     niche: result.niche,
     prompt_text: JSON.stringify(latestResponse.answers),
