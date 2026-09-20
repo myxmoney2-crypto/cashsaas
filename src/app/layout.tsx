@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
-import { Fredoka, Plus_Jakarta_Sans } from "next/font/google";
+import { Plus_Jakarta_Sans, Space_Grotesk } from "next/font/google";
+import { Footer } from "@/components/Footer";
 import "./globals.css";
 
-const fredoka = Fredoka({
-  variable: "--font-fredoka",
+const spaceGrotesk = Space_Grotesk({
+  variable: "--font-space",
   weight: ["500", "600", "700"],
   subsets: ["latin"],
 });
@@ -24,10 +25,11 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="fr"
-      className={`${fredoka.variable} ${jakarta.variable} h-full antialiased`}
+      className={`${spaceGrotesk.variable} ${jakarta.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col bg-background text-foreground">
         {children}
+        <Footer />
       </body>
     </html>
   );

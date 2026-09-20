@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { SimulatedDashboard } from "@/components/SimulatedDashboard";
+import { SimulatedNotifications } from "@/components/SimulatedNotifications";
 import { EXTRA_QUESTIONS, RECURRING_CHOICE, isComplete } from "@/lib/questionnaire";
 import { SIMULATION_DISCLAIMER, buildSimulation } from "@/lib/simulation";
 import {
@@ -91,6 +92,7 @@ export function ComputingScreen() {
               count={simulation.count}
               recurring={simulation.recurring}
             />
+            {simulation.price && <SimulatedNotifications price={simulation.price} />}
             <div className="flex flex-col gap-3 text-center max-w-[520px]">
               <p className="text-foreground text-[17px] leading-relaxed m-0">{simulation.sentence}</p>
               {simulation.chips.length > 0 && (

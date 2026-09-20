@@ -4,6 +4,8 @@ import { Ticker } from "@/components/Ticker";
 import { PhoneMockup } from "@/components/PhoneMockup";
 import { Faq } from "@/components/Faq";
 import { SectionLabel } from "@/components/SectionLabel";
+import { TechBackdrop } from "@/components/TechBackdrop";
+import { Typewriter } from "@/components/Typewriter";
 
 const PLAN_WEEKS = [
   {
@@ -28,21 +30,16 @@ const PLAN_WEEKS = [
   },
 ];
 
+const HERO_PHRASES = [
+  "Crée l'idée qui génère du cash.",
+  "Ton SaaS, ton code, ton plan des 30 jours.",
+  "Encaisse tes premiers paiements.",
+];
+
 export default function Home() {
   return (
     <div className="w-full flex flex-col items-center relative overflow-hidden">
-      <svg
-        width="1280"
-        height="640"
-        className="absolute top-0 left-0 opacity-[0.28] pointer-events-none hidden md:block"
-        viewBox="0 0 1280 640"
-      >
-        <line x1="1040" y1="90" x2="1160" y2="200" stroke="var(--accent)" strokeWidth="1" />
-        <line x1="1160" y1="200" x2="1080" y2="340" stroke="var(--accent-2)" strokeWidth="1" />
-        <circle cx="1040" cy="90" r="3" fill="var(--accent)" />
-        <circle cx="1160" cy="200" r="3" fill="var(--accent)" />
-        <circle cx="1080" cy="340" r="3" fill="var(--accent-2)" />
-      </svg>
+      <TechBackdrop />
 
       <Header />
       <Ticker />
@@ -55,10 +52,7 @@ export default function Home() {
             <span className="text-muted-2">et encaisse</span>{" "}
             <span className="text-foreground">tes premiers revenus.</span>
           </h1>
-          <p className="text-[17px] leading-relaxed text-muted max-w-[420px] m-0">
-            Un SaaS taillé pour toi, le code déjà écrit, et un plan pour{" "}
-            <strong className="text-[#C7CCD6]">tes 30 premiers jours.</strong>
-          </p>
+          <Typewriter phrases={HERO_PHRASES} />
           <Link
             href="/questionnaire"
             className="bg-accent text-white px-8 py-4 rounded-full font-semibold text-base w-fit hover:opacity-90 transition-opacity"
