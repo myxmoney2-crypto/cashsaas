@@ -16,6 +16,12 @@ export function PricingScenarios({
         <h2 id="scenarios-prix" className="font-display font-semibold text-xl text-foreground m-0">
           Ton objectif, plusieurs façons de l&apos;atteindre
         </h2>
+        <p className="text-sm text-muted mt-2 mb-0 max-w-[640px]">
+          Proposer plusieurs paliers de prix (comme Starter, Pro et Premium) te permet de toucher plusieurs
+          types de clients : chacun choisit le prix qui lui convient. Il te faut alors moins de clients par
+          palier pour atteindre ton objectif, et ton chiffre d&apos;affaires total peut être plus élevé
+          qu&apos;avec un prix unique.
+        </p>
         {goal ? (
           <p className="text-sm text-muted mt-2 mb-0">
             Pour atteindre {fmt(goal)} € par mois, le nombre de clients dépend du prix que tu choisis.

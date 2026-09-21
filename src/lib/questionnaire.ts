@@ -182,17 +182,11 @@ export const QUESTIONS: Question[] = [
     ],
   },
   {
-    id: "time_per_week",
+    id: "time_per_day",
     block: 3,
     type: "choice",
-    prompt: "Combien de temps tu peux vraiment y consacrer par semaine ?",
-    choices: [
-      "Moins de 5 h",
-      "5 à 10 h",
-      "10 à 20 h",
-      "20 à 35 h",
-      "Temps plein (35 h et plus)",
-    ],
+    prompt: "Combien de temps tu peux vraiment y consacrer par jour ?",
+    choices: ["15 min", "30 min", "1 h", "2 h", "3 h", "5 h et plus"],
   },
   {
     id: "speed_vs_solid",
@@ -319,6 +313,9 @@ export const QUESTIONS: Question[] = [
 export const INTRO_MESSAGE =
   "Avant de te générer ton SaaS sur mesure, on a besoin de mieux te connaître — plus tu es précis, plus le résultat sera collé à toi. Ça prend 3-4 minutes.";
 
+/** Nombre de questions rapides posées APRÈS l'écran de simulation. */
+export const TAIL_QUESTIONS = 3;
+
 export function getVisibleQuestions(answers: Answers): Question[] {
   return QUESTIONS.filter((q) => !q.skipIf?.(answers));
 }
@@ -326,6 +323,25 @@ export function getVisibleQuestions(answers: Answers): Question[] {
 /** Toutes les questions posées (donc non sautées) et non facultatives ont une réponse. */
 export function isComplete(answers: Answers): boolean {
   return getVisibleQuestions(answers).every((q) => q.optional || answers[q.id] !== undefined);
+}
+
+/** Toutes les questions d'avant la simulation ont une réponse (celles dont elle a besoin y sont). */
+export function isReadyForSimulation(answers: Answers): boolean {
+  return getVisibleQuestions(answers)
+    .slice(0, -TAIL_QUESTIONS)
+    .every((q) => q.optional || answers[q.id] !== undefined);
+}
+
+/** La simulation a été vue : sa dernière question (le prix visé) a reçu une réponse. */
+export function isSimulationDone(answers: Answers): boolean {
+  return answers.target_price !== undefined;
+}
+
+/** Index de la première question sans réponse (ou de la dernière si tout est répondu). */
+export function firstUnansweredIndex(answers: Answers): number {
+  const questions = getVisibleQuestions(answers);
+  const i = questions.findIndex((q) => answers[q.id] === undefined || answers[q.id] === "");
+  return i === -1 ? questions.length - 1 : i;
 }
 
 export type ExtraQuestion = {
@@ -341,6 +357,13 @@ export const EXTRA_QUESTIONS: ExtraQuestion[] = [
     id: "daily_content",
     prompt: "Tu es prêt à poster du contenu tous les jours ?",
     choices: ["Oui", "Non"],
+  },
+  {
+    // Sert au module d'acquisition de la mini-formation (clippers) ; pas d'impact sur la simulation.
+    id: "clippers",
+    prompt:
+      "Tu serais prêt à passer par des clippers (des personnes payées pour poster des extraits de ton contenu sur TikTok) ?",
+    choices: ["Oui", "Non", "Je ne sais pas encore"],
   },
   {
     // Sert au calcul de la simulation : le prix vient de la personne, il n'est jamais deviné.

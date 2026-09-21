@@ -341,27 +341,31 @@ const RULES: Record<string, Rule> = {
     ],
   ]),
 
-  time_per_week: (ctx) => {
+  time_per_day: (ctx) => {
     const variants = [
       [
-        "Moins de 5 h par semaine, c'est peu : on visera un projet léger et régulier plutôt qu'un gros chantier.",
+        "15 minutes par jour, c'est peu mais c'est régulier : on visera un projet léger plutôt qu'un gros chantier.",
         "Avec un temps limité, on choisira une idée qui demande peu de maintenance.",
       ],
       [
-        "5 à 10 h par semaine, c'est un bon rythme pour avancer régulièrement.",
-        "Le temps dispo décide du rythme, on va caler le plan dessus.",
+        "30 minutes par jour, c'est un bon point de départ : la régularité compte plus que la durée.",
+        "Une demi-heure par jour tient sur la durée, on va caler le plan dessus.",
       ],
       [
-        "10 à 20 h par semaine, c'est un vrai engagement : on peut viser un lancement assez rapide.",
+        "1 h par jour, c'est un vrai rythme pour avancer semaine après semaine.",
+        "Une heure par jour suffit pour lancer une première version en quelques semaines.",
+      ],
+      [
+        "2 h par jour, c'est un vrai engagement : on peut viser un lancement assez rapide.",
         "Avec ce temps-là, on peut avancer vite sur les premières semaines.",
       ],
       [
-        "20 à 35 h par semaine, c'est presque un temps plein : on peut structurer un plan ambitieux.",
+        "3 h par jour, c'est presque un mi-temps : on peut structurer un plan ambitieux.",
         "Avec autant de temps, on peut viser un lancement rapide et des tests fréquents.",
       ],
       [
-        "À temps plein, on peut avancer vite et structurer un vrai plan d'attaque.",
-        "Tout ton temps sur le projet : on va cadrer ça pour que chaque semaine compte.",
+        "5 h par jour ou plus, on peut avancer vite et structurer un vrai plan d'attaque.",
+        "Beaucoup de temps sur le projet : on va cadrer ça pour que chaque journée compte.",
       ],
     ][ctx.index];
 

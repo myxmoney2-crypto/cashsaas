@@ -1,4 +1,4 @@
-import { TRAINING_MODULES, type TrainingModule } from "@/lib/training";
+import { type TrainingModule } from "@/lib/training";
 
 function ModuleMedia({ module }: { module: TrainingModule }) {
   if (module.kind === "video" && module.src) {
@@ -31,7 +31,7 @@ function ModuleMedia({ module }: { module: TrainingModule }) {
 }
 
 /** Liste des modules de la mini-formation ; affiche un message d'attente tant qu'il n'y en a aucun. */
-export function TrainingPanel({ modules = TRAINING_MODULES }: { modules?: TrainingModule[] }) {
+export function TrainingPanel({ modules }: { modules: TrainingModule[] }) {
   if (modules.length === 0) {
     return (
       <div className="bg-surface border border-white/[0.08] rounded-2xl p-6 text-muted text-sm">
@@ -58,6 +58,30 @@ export function TrainingPanel({ modules = TRAINING_MODULES }: { modules?: Traini
           </div>
 
           <ModuleMedia module={module} />
+
+          {module.sections && (
+            <div className="flex flex-col gap-6">
+              {module.sections.map((section, i) => (
+                <section key={i} className="flex flex-col gap-3">
+                  {section.heading && (
+                    <h3 className="font-display font-semibold text-base text-foreground m-0">{section.heading}</h3>
+                  )}
+                  {section.paragraphs?.map((paragraph, j) => (
+                    <p key={j} className="text-sm text-muted leading-relaxed m-0">
+                      {paragraph}
+                    </p>
+                  ))}
+                  {section.bullets && (
+                    <ul className="flex flex-col gap-2 text-sm text-muted leading-relaxed list-disc pl-5 m-0">
+                      {section.bullets.map((bullet, j) => (
+                        <li key={j}>{bullet}</li>
+                      ))}
+                    </ul>
+                  )}
+                </section>
+              ))}
+            </div>
+          )}
 
           {module.body && module.body.length > 0 && (
             <div className="flex flex-col gap-3 text-sm text-muted leading-relaxed">

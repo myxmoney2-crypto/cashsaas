@@ -2,6 +2,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import type { QuestionnaireAnswers, GenerationResult, PricingOption, Tier } from "./types";
 import { TIERS } from "./tiers";
 import { EXTRA_QUESTIONS, QUESTIONS } from "./questionnaire";
+import { cleanResultText } from "./text";
 
 // Budget de sortie généreux (idée + code complet + plan) : on ne paie que les tokens réellement écrits.
 // Au-delà d'environ 21 000 tokens le SDK exige l'envoi en flux continu (streaming), utilisé ci-dessous.
@@ -33,7 +34,7 @@ function getAnthropic(): Anthropic {
   return cached;
 }
 
-const SYSTEM_PROMPT = `Tu es un générateur d'idées de SaaS. Tu reçois les réponses d'un utilisateur à un questionnaire sur sa situation réelle (26 questions, plus 2 questions complémentaires dont le prix qu'il vise pour son produit).
+const SYSTEM_PROMPT = `Tu es un générateur d'idées de SaaS. Tu reçois les réponses d'un utilisateur à un questionnaire sur sa situation réelle (26 questions, plus 3 questions complémentaires dont le prix qu'il vise pour son produit et s'il est prêt à passer par des clippers).
 
 À partir de l'ENSEMBLE des réponses (jamais une seule question isolée), génère :
 
@@ -45,11 +46,13 @@ const SYSTEM_PROMPT = `Tu es un générateur d'idées de SaaS. Tu reçois les r�
    - si des tables sont nécessaires, ajoute aussi un fichier "supabase/schema.sql" (rejouable sans risque, RLS activé, policies adaptées à la clé anon) ; ne réutilise pas la table "leads" du template sauf si elle convient vraiment ;
    - le code doit être complet et fonctionner tel quel, sans dépendance supplémentaire.
 
-3. Des recommandations d'outils adaptées au budget déclaré (si budget serré : tiers gratuits Vercel/Supabase ; si budget confortable : paliers payants).
+3. Des recommandations d'outils adaptées au budget déclaré (si budget serré : tiers gratuits Vercel/Supabase ; si budget confortable : paliers payants). Dans tech_stack, chaque entrée est une courte ligne « Outil : à quoi il sert ». Dans tools_recommendation, un tableau de 3 à 6 courtes phrases (une idée par phrase, dont une sur le budget), jamais un paragraphe.
 
-4. Un plan d'accompagnement sur 30 jours, découpé en 4 semaines, adapté au temps disponible par semaine et au format de contenu choisi (avec ou sans apparition à l'écran).
+4. Un plan d'accompagnement sur 30 jours, découpé en 4 semaines, adapté au temps disponible par jour et au format de contenu choisi (avec ou sans apparition à l'écran).
 
 5. De 2 à 3 scénarios de prix pour atteindre l'objectif de revenu mensuel indiqué par l'utilisateur (sa réponse à « Combien tu vises par mois »), afin de montrer que l'objectif est atteignable de plusieurs façons selon le prix choisi. Pour chaque scénario : le prix en euros (price_eur), s'il est mensuel (abonnement) ou unique (vente ponctuelle) (billing), et une justification courte de 1 à 2 phrases adaptée à ton idée et à son audience (rationale). Si l'utilisateur a indiqué le prix qu'il vise, l'un des scénarios doit être exactement ce prix. Ne donne PAS le nombre de clients : il est calculé automatiquement (objectif ÷ prix). Ce sont des ordres de grandeur pour illustrer, jamais une promesse : n'écris aucune garantie de revenus.
+
+Règle d'écriture : n'utilise jamais le tiret cadratin (—) dans les textes ; préfère la virgule, le point ou les deux-points.
 
 Réponds UNIQUEMENT avec un objet JSON valide, sans texte autour, de la forme :
 {
@@ -58,7 +61,7 @@ Réponds UNIQUEMENT avec un objet JSON valide, sans texte autour, de la forme :
   "pitch": string,
   "tech_stack": string[],
   "code_files": [{ "path": string, "content": string }],
-  "tools_recommendation": string,
+  "tools_recommendation": string[],
   "acquisition_plan": [{ "week": number, "title": string, "description": string }],
   "pricing_options": [{ "price_eur": number, "billing": "mensuel" | "unique", "rationale": string }]
 }`;
@@ -148,7 +151,7 @@ export async function generateForTier(
     typeof answers.income_goal === "number" && answers.income_goal > 0 ? answers.income_goal : null;
   parsed.monthly_goal_eur = goal;
   parsed.pricing_options = normalizePricingOptions(parsed.pricing_options, goal);
-  return parsed;
+  return cleanResultText(parsed);
 }
 
 /** Nettoie les scénarios proposés par le modèle et calcule le nombre de clients pour chacun. */

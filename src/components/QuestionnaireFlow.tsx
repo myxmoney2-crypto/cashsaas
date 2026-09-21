@@ -4,8 +4,12 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import {
   BLOCKS,
+  EXTRA_QUESTIONS,
   INTRO_MESSAGE,
+  TAIL_QUESTIONS,
+  firstUnansweredIndex,
   getVisibleQuestions,
+  isSimulationDone,
   type Question,
 } from "@/lib/questionnaire";
 import { getValidation } from "@/lib/validations";
@@ -153,10 +157,15 @@ function isAnswered(value: Value) {
   return typeof value === "string" ? value.trim() !== "" : true;
 }
 
-export function QuestionnaireFlow() {
-  const [started, setStarted] = useState(false);
-  const [index, setIndex] = useState(0);
-  const [answers, setAnswers] = useState<QuestionnaireAnswers>({});
+export function QuestionnaireFlow({
+  initialAnswers,
+}: {
+  /** Reprise après l'écran de simulation : on repart des réponses gardées, à la première question restante. */
+  initialAnswers?: QuestionnaireAnswers;
+} = {}) {
+  const [started, setStarted] = useState(Boolean(initialAnswers));
+  const [index, setIndex] = useState(() => (initialAnswers ? firstUnansweredIndex(initialAnswers) : 0));
+  const [answers, setAnswers] = useState<QuestionnaireAnswers>(initialAnswers ?? {});
   const router = useRouter();
   // Graine propre à chaque passage : les phrases de validation ne sont pas les mêmes d'une session à l'autre.
   const [seed] = useState(() => Math.random().toString(36).slice(2));
@@ -195,17 +204,33 @@ export function QuestionnaireFlow() {
 
   function goNext() {
     if (!isLast) {
+      // Les questions d'avant la simulation sont répondues : on la montre, puis on reprend pour les dernières.
+      if (index === questions.length - TAIL_QUESTIONS - 1 && !isSimulationDone(answers)) {
+        saveStoredAnswers(askedAnswers());
+        router.push("/calcul");
+        return;
+      }
       setIndex((i) => i + 1);
       return;
     }
-    // Pas de compte à ce stade : on garde les réponses dans le navigateur, on passe par l'écran
-    // « calcul en cours » (qui ajoute ses 2 questions), puis le paywall crée le compte et encaisse.
-    // On n'envoie que les questions réellement posées (pas une réponse périmée à une question sautée).
-    const asked = Object.fromEntries(
-      questions.filter((q) => isAnswered(answers[q.id])).map((q) => [q.id, answers[q.id]])
-    );
-    saveStoredAnswers(asked);
-    router.push("/calcul");
+    // Pas de compte à ce stade : on garde les réponses dans le navigateur, puis le paywall crée le compte
+    // et encaisse. La simulation est normalement déjà passée (avant les dernières questions).
+    saveStoredAnswers(askedAnswers());
+    router.push(isSimulationDone(answers) ? "/pricing" : "/calcul");
+  }
+
+  // On n'envoie que les questions réellement posées (pas une réponse périmée à une question sautée),
+  // plus les réponses du pop-up de simulation déjà données.
+  function askedAnswers() {
+    const extraIds = new Set(EXTRA_QUESTIONS.map((q) => q.id));
+    return {
+      ...Object.fromEntries(
+        Object.entries(answers).filter(([id, value]) => extraIds.has(id) && isAnswered(value))
+      ),
+      ...Object.fromEntries(
+        questions.filter((q) => isAnswered(answers[q.id])).map((q) => [q.id, answers[q.id]])
+      ),
+    };
   }
 
   function goBack() {

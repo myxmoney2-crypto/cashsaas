@@ -1,11 +1,13 @@
 import { Header } from "@/components/Header";
-import { QuestionnaireFlow } from "@/components/QuestionnaireFlow";
+import { QuestionnaireEntry } from "@/components/QuestionnaireEntry";
 
-export default function QuestionnairePage() {
+export default async function QuestionnairePage(props: PageProps<"/questionnaire">) {
+  const { reprise } = await props.searchParams;
+
   return (
     <div className="w-full flex flex-col items-center">
       <Header />
-      <QuestionnaireFlow />
+      <QuestionnaireEntry resume={reprise === "1"} />
     </div>
   );
 }

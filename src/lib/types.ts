@@ -44,7 +44,8 @@ export type GenerationResult = {
   pitch: string;
   tech_stack: string[];
   code_files: GeneratedCodeFile[];
-  tools_recommendation: string;
+  /** Liste de courtes phrases ; les anciennes générations contiennent un seul texte. */
+  tools_recommendation: string | string[];
   acquisition_plan: { week: number; title: string; description: string }[];
   /** Absents des générations créées avant l'ajout des scénarios de prix. */
   pricing_options?: PricingOption[];

@@ -1,16 +1,23 @@
+import { cookies } from "next/headers";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Header } from "@/components/Header";
 import { SectionLabel } from "@/components/SectionLabel";
 import { AutoRefresh } from "@/components/AutoRefresh";
 import { ClearStoredAnswers } from "@/components/ClearStoredAnswers";
-import { OnboardingSteps } from "@/components/OnboardingSteps";
+import { DownloadFileButton } from "@/components/DownloadFileButton";
+import { PublishWizard } from "@/components/PublishWizard";
 import { PricingScenarios } from "@/components/PricingScenarios";
 import { RegenerateButton } from "@/components/RegenerateButton";
 import { createClient } from "@/lib/supabase/server";
+import { GITHUB_TOKEN_COOKIE, githubConfigured } from "@/lib/github";
+import { cleanResultText } from "@/lib/text";
 import { openBillingPortal } from "./actions";
 import { TIERS } from "@/lib/tiers";
 import type { Generation, GenerationResult, Tier } from "@/lib/types";
+
+// La création du dépôt GitHub (action du tableau de bord) enchaîne plusieurs appels : on laisse de la marge.
+export const maxDuration = 60;
 
 function currentMonth(): string {
   return new Date().toISOString().slice(0, 7);
@@ -33,6 +40,8 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
   const justPaid = searchParams.checkout === "success";
   const billingError =
     typeof searchParams.billing_error === "string" ? searchParams.billing_error : null;
+  const openWizard = searchParams.construire === "1";
+  const githubError = typeof searchParams.gh_error === "string" ? searchParams.gh_error : null;
 
   const supabase = await createClient();
   const {
@@ -88,12 +97,12 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
 
   const { data: done } = await supabase
     .from("generations")
-    .select("result")
+    .select("result, code_repo_url")
     .eq("user_id", user.id)
     .eq("status", "done")
     .order("created_at", { ascending: false })
     .limit(1)
-    .maybeSingle<Pick<Generation, "result">>();
+    .maybeSingle<Pick<Generation, "result" | "code_repo_url">>();
 
   const { data: usage } = await supabase
     .from("regenerations_usage")
@@ -104,7 +113,9 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
 
   const cap = TIERS[tier].regenerationsPerMonth;
   const remaining = Math.max(0, cap - (usage?.count ?? 0));
-  const result = (done?.result ?? null) as GenerationResult | null;
+  const result = done?.result ? cleanResultText(done.result as GenerationResult) : null;
+  const githubConnected = Boolean((await cookies()).get(GITHUB_TOKEN_COOKIE)?.value);
+  const schemaSql = result?.code_files.find((file) => file.path === "supabase/schema.sql")?.content ?? null;
   const failed =
     latest?.status === "failed" || (latest?.status === "pending" && isExpired(latest.created_at));
   // Si l'état ne peut pas être lu (colonne absente, cache de schéma...), on l'affiche au lieu de
@@ -195,19 +206,19 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
               <h2 className="font-display font-semibold text-xl text-foreground">
                 Stack technique recommandée
               </h2>
-              <div className="flex flex-wrap gap-2">
-                {result.tech_stack.map((tech) => (
-                  <span
-                    key={tech}
-                    className="text-sm text-muted-2 bg-surface border border-white/10 rounded-full px-4 py-1.5"
-                  >
-                    {tech}
-                  </span>
+              <ul className="flex flex-col gap-2 text-sm text-muted leading-relaxed list-disc pl-5 m-0">
+                {(result.tech_stack as string[]).map((tech) => (
+                  <li key={tech}>{tech}</li>
                 ))}
-              </div>
-              <p className="text-sm text-muted leading-relaxed">
-                {result.tools_recommendation}
-              </p>
+              </ul>
+              <h3 className="font-display font-semibold text-base text-foreground mt-2 mb-0">
+                Budget et outils
+              </h3>
+              <ul className="flex flex-col gap-2 text-sm text-muted leading-relaxed list-disc pl-5 m-0">
+                {(result.tools_recommendation as string[]).map((line) => (
+                  <li key={line}>{line}</li>
+                ))}
+              </ul>
             </section>
 
             {result.pricing_options && result.pricing_options.length > 0 && (
@@ -219,19 +230,19 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
                 Ton code ({result.code_files.length} fichier
                 {result.code_files.length > 1 ? "s" : ""})
               </h2>
-              <div className="flex flex-col gap-2">
+              <div className="flex flex-col gap-3">
                 {result.code_files.map((file) => (
-                  <details
-                    key={file.path}
-                    className="bg-surface border border-white/[0.08] rounded-xl px-4 py-3"
-                  >
-                    <summary className="text-sm text-foreground font-mono cursor-pointer">
-                      {file.path}
-                    </summary>
-                    <pre className="mt-3 text-xs text-muted overflow-x-auto whitespace-pre-wrap">
-                      {file.content}
-                    </pre>
-                  </details>
+                  <div key={file.path} className="flex flex-col sm:flex-row sm:items-start gap-3">
+                    <details className="flex-1 min-w-0 bg-surface border border-white/[0.08] rounded-xl px-4 py-3">
+                      <summary className="text-sm text-foreground font-mono cursor-pointer">
+                        {file.path}
+                      </summary>
+                      <pre className="mt-3 text-xs text-muted overflow-x-auto whitespace-pre-wrap">
+                        {file.content}
+                      </pre>
+                    </details>
+                    <DownloadFileButton path={file.path} content={file.content} />
+                  </div>
                 ))}
               </div>
             </section>
@@ -262,15 +273,17 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
           </>
         )}
 
-        <section className="flex flex-col gap-4">
-          <div>
-            <SectionLabel>Mise en ligne</SectionLabel>
-            <h2 className="font-display font-semibold text-xl text-foreground m-0">
-              Déploie sur tes propres comptes
-            </h2>
-          </div>
-          <OnboardingSteps />
-        </section>
+        {result && (
+          <PublishWizard
+            ideaName={result.idea_name}
+            repoUrl={done?.code_repo_url ?? null}
+            githubConnected={githubConnected}
+            githubError={githubError}
+            githubEnabled={githubConfigured()}
+            schemaSql={schemaSql}
+            initialOpen={openWizard}
+          />
+        )}
 
         {isAdmin && (
           <Link href="/questionnaire" className="text-sm text-accent hover:opacity-80 w-fit">

@@ -5,7 +5,13 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { SimulatedDashboard } from "@/components/SimulatedDashboard";
 import { SimulatedNotifications } from "@/components/SimulatedNotifications";
-import { EXTRA_QUESTIONS, RECURRING_CHOICE, isComplete } from "@/lib/questionnaire";
+import {
+  EXTRA_QUESTIONS,
+  RECURRING_CHOICE,
+  TAIL_QUESTIONS,
+  isComplete,
+  isReadyForSimulation,
+} from "@/lib/questionnaire";
 import { SIMULATION_DISCLAIMER, buildSimulation } from "@/lib/simulation";
 import {
   mergeStoredAnswers,
@@ -18,7 +24,7 @@ const TOTAL_MS = 5200;
 const TICK_MS = 50;
 const STEP = (100 * TICK_MS) / TOTAL_MS;
 // La barre s'arrête à ces paliers tant que la question correspondante n'a pas reçu de réponse.
-const CHECKPOINTS: Record<string, number> = { daily_content: 30, target_price: 68 };
+const CHECKPOINTS: Record<string, number> = { daily_content: 25, clippers: 47, target_price: 68 };
 const STEP_LABELS: [number, string][] = [
   [0, "Lecture de tes réponses..."],
   [35, "Croisement avec ton objectif..."],
@@ -34,7 +40,9 @@ export function ComputingScreen() {
     () => undefined
   );
   const answers = useMemo(() => (raw === undefined ? null : parseStoredAnswers(raw)), [raw]);
-  const valid = answers !== null && isComplete(answers);
+  // La simulation arrive avant les dernières questions : seules celles d'avant sont nécessaires.
+  const valid = answers !== null && isReadyForSimulation(answers);
+  const allDone = answers !== null && isComplete(answers);
   const invalid = raw !== undefined && !valid;
 
   const [progress, setProgress] = useState(0);
@@ -113,11 +121,16 @@ export function ComputingScreen() {
         )}
 
         <Link
-          href="/pricing"
+          href={allDone ? "/pricing" : "/questionnaire?reprise=1"}
           className="bg-accent text-white px-8 py-4 rounded-full font-semibold text-base hover:opacity-90 transition-opacity"
         >
-          Débloquer mon résultat →
+          {allDone ? "Débloquer mon résultat →" : `Encore ${TAIL_QUESTIONS} questions rapides →`}
         </Link>
+        {!allDone && (
+          <p className="text-[13px] text-muted m-0 -mt-3">
+            Ensuite, ton résultat complet : idée, code et plan.
+          </p>
+        )}
       </div>
     );
   }
