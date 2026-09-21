@@ -3,6 +3,13 @@ import type { QuestionnaireAnswers, GenerationResult, Tier } from "./types";
 import { TIERS } from "./tiers";
 import { EXTRA_QUESTIONS, QUESTIONS } from "./questionnaire";
 
+// Budget de sortie généreux (idée + code complet + plan) : on ne paie que les tokens réellement écrits.
+// Au-delà d'environ 21 000 tokens le SDK exige l'envoi en flux continu (streaming), utilisé ci-dessous.
+const GENERATION_MAX_TOKENS = 32_000;
+// Le délai du SDK ne couvre pas la durée d'un flux : on l'annule nous-mêmes, avant la garde de 270 s de
+// runGeneration et la coupure Vercel à 300 s, pour que l'échec soit enregistré proprement.
+const STREAM_DEADLINE_MS = 255_000;
+
 let cached: Anthropic | null = null;
 
 /**
@@ -79,22 +86,46 @@ export async function generateForTier(
   const config = TIERS[tier];
 
   const startedAt = Date.now();
-  const message = await getAnthropic().messages.create({
-    model: config.model,
-    max_tokens: 12000,
-    system: SYSTEM_PROMPT,
-    messages: [
+  const controller = new AbortController();
+  const deadline = setTimeout(() => controller.abort(), STREAM_DEADLINE_MS);
+
+  let message: Anthropic.Message;
+  try {
+    const stream = getAnthropic().messages.stream(
       {
-        role: "user",
-        content: `Voici les réponses au questionnaire :\n\n${formatAnswers(answers)}`,
+        model: config.model,
+        max_tokens: GENERATION_MAX_TOKENS,
+        ...(config.tuning.thinking ? { thinking: { type: config.tuning.thinking } } : {}),
+        ...(config.tuning.effort ? { output_config: { effort: config.tuning.effort } } : {}),
+        system: SYSTEM_PROMPT,
+        messages: [
+          {
+            role: "user",
+            content: `Voici les réponses au questionnaire :\n\n${formatAnswers(answers)}`,
+          },
+        ],
       },
-    ],
-  });
+      { signal: controller.signal }
+    );
+    message = await stream.finalMessage();
+  } catch (err) {
+    if (controller.signal.aborted) {
+      throw new Error(
+        `Délai dépassé (${Math.round(STREAM_DEADLINE_MS / 1000)} s) : la génération a été interrompue`
+      );
+    }
+    throw err;
+  } finally {
+    clearTimeout(deadline);
+  }
 
   console.log("[anthropic] réponse reçue", {
     model: config.model,
+    tuning: config.tuning,
     seconds: Math.round((Date.now() - startedAt) / 1000),
     outputTokens: message.usage.output_tokens,
+    maxTokens: GENERATION_MAX_TOKENS,
+    thinkingBlocks: message.content.filter((block) => block.type === "thinking").length,
     stopReason: message.stop_reason,
   });
 

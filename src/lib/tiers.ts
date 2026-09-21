@@ -7,6 +7,14 @@ export type TierConfig = {
   price: number;
   stripePriceId: string | undefined;
   model: string;
+  /**
+   * Réglage de la « réflexion » du modèle pour la génération. Elle consomme le même budget de tokens que le
+   * texte écrit : sur ces modèles elle est active par défaut et peut avaler une grosse part de max_tokens.
+   *  - thinking "disabled" : réflexion coupée (Sonnet 5) ;
+   *  - effort : réflexion allégée, sans la couper (Opus 5 : la couper a un défaut connu, texte parasite dans la réponse) ;
+   *  - rien : Haiku 4.5, qui n'a pas de réflexion par défaut et rejette le paramètre d'effort.
+   */
+  tuning: { thinking?: "disabled"; effort?: "low" | "medium" | "high" };
   /** Régénérations possibles par mois, en plus de la génération faite à l'achat. */
   regenerationsPerMonth: number;
   tagline: string;
@@ -19,6 +27,7 @@ export const TIERS: Record<Tier, TierConfig> = {
     price: 14.9,
     stripePriceId: process.env.STRIPE_PRICE_STARTER,
     model: "claude-haiku-4-5-20251001",
+    tuning: {},
     regenerationsPerMonth: 1,
     tagline: "Pour tester l'idée",
   },
@@ -28,6 +37,7 @@ export const TIERS: Record<Tier, TierConfig> = {
     price: 29.9,
     stripePriceId: process.env.STRIPE_PRICE_PRO,
     model: "claude-sonnet-5",
+    tuning: { thinking: "disabled" },
     regenerationsPerMonth: 3,
     tagline: "Le plus populaire",
   },
@@ -37,6 +47,7 @@ export const TIERS: Record<Tier, TierConfig> = {
     price: 59.9,
     stripePriceId: process.env.STRIPE_PRICE_PREMIUM,
     model: "claude-opus-5",
+    tuning: { effort: "medium" },
     regenerationsPerMonth: 10,
     tagline: "Le plus complet",
   },
