@@ -30,6 +30,14 @@ export type GeneratedCodeFile = {
   content: string;
 };
 
+export type PricingOption = {
+  price_eur: number;
+  billing: "mensuel" | "unique";
+  /** Calculé par l'application (objectif ÷ prix), jamais par le modèle. */
+  clients: number | null;
+  rationale: string;
+};
+
 export type GenerationResult = {
   idea_name: string;
   niche: string;
@@ -38,6 +46,9 @@ export type GenerationResult = {
   code_files: GeneratedCodeFile[];
   tools_recommendation: string;
   acquisition_plan: { week: number; title: string; description: string }[];
+  /** Absents des générations créées avant l'ajout des scénarios de prix. */
+  pricing_options?: PricingOption[];
+  monthly_goal_eur?: number | null;
 };
 
 export type GenerationStatus = "pending" | "done" | "failed";

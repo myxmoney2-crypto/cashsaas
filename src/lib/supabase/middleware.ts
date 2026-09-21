@@ -2,7 +2,7 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
 // Le questionnaire et la page des paliers sont publics : le compte se crée au moment du paiement.
-const PROTECTED_PREFIXES = ["/dashboard"];
+const PROTECTED_PREFIXES = ["/dashboard", "/formation"];
 
 function redirectToLogin(request: NextRequest) {
   const url = request.nextUrl.clone();

@@ -5,6 +5,7 @@ import { SectionLabel } from "@/components/SectionLabel";
 import { AutoRefresh } from "@/components/AutoRefresh";
 import { ClearStoredAnswers } from "@/components/ClearStoredAnswers";
 import { OnboardingSteps } from "@/components/OnboardingSteps";
+import { PricingScenarios } from "@/components/PricingScenarios";
 import { RegenerateButton } from "@/components/RegenerateButton";
 import { createClient } from "@/lib/supabase/server";
 import { openBillingPortal } from "./actions";
@@ -208,6 +209,10 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
                 {result.tools_recommendation}
               </p>
             </section>
+
+            {result.pricing_options && result.pricing_options.length > 0 && (
+              <PricingScenarios options={result.pricing_options} goal={result.monthly_goal_eur} />
+            )}
 
             <section className="flex flex-col gap-4">
               <h2 className="font-display font-semibold text-xl text-foreground">

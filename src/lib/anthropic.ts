@@ -1,5 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
-import type { QuestionnaireAnswers, GenerationResult, Tier } from "./types";
+import type { QuestionnaireAnswers, GenerationResult, PricingOption, Tier } from "./types";
 import { TIERS } from "./tiers";
 import { EXTRA_QUESTIONS, QUESTIONS } from "./questionnaire";
 
@@ -49,6 +49,8 @@ const SYSTEM_PROMPT = `Tu es un générateur d'idées de SaaS. Tu reçois les r�
 
 4. Un plan d'accompagnement sur 30 jours, découpé en 4 semaines, adapté au temps disponible par semaine et au format de contenu choisi (avec ou sans apparition à l'écran).
 
+5. De 2 à 3 scénarios de prix pour atteindre l'objectif de revenu mensuel indiqué par l'utilisateur (sa réponse à « Combien tu vises par mois »), afin de montrer que l'objectif est atteignable de plusieurs façons selon le prix choisi. Pour chaque scénario : le prix en euros (price_eur), s'il est mensuel (abonnement) ou unique (vente ponctuelle) (billing), et une justification courte de 1 à 2 phrases adaptée à ton idée et à son audience (rationale). Si l'utilisateur a indiqué le prix qu'il vise, l'un des scénarios doit être exactement ce prix. Ne donne PAS le nombre de clients : il est calculé automatiquement (objectif ÷ prix). Ce sont des ordres de grandeur pour illustrer, jamais une promesse : n'écris aucune garantie de revenus.
+
 Réponds UNIQUEMENT avec un objet JSON valide, sans texte autour, de la forme :
 {
   "idea_name": string,
@@ -57,7 +59,8 @@ Réponds UNIQUEMENT avec un objet JSON valide, sans texte autour, de la forme :
   "tech_stack": string[],
   "code_files": [{ "path": string, "content": string }],
   "tools_recommendation": string,
-  "acquisition_plan": [{ "week": number, "title": string, "description": string }]
+  "acquisition_plan": [{ "week": number, "title": string, "description": string }],
+  "pricing_options": [{ "price_eur": number, "billing": "mensuel" | "unique", "rationale": string }]
 }`;
 
 function formatAnswers(answers: QuestionnaireAnswers): string {
@@ -139,5 +142,33 @@ export async function generateForTier(
   }
 
   const parsed = extractJson(textBlock.text) as GenerationResult;
+
+  // Le nombre de clients est calculé ici (objectif ÷ prix), pas par le modèle : pas d'erreur d'arithmétique.
+  const goal =
+    typeof answers.income_goal === "number" && answers.income_goal > 0 ? answers.income_goal : null;
+  parsed.monthly_goal_eur = goal;
+  parsed.pricing_options = normalizePricingOptions(parsed.pricing_options, goal);
   return parsed;
+}
+
+/** Nettoie les scénarios proposés par le modèle et calcule le nombre de clients pour chacun. */
+export function normalizePricingOptions(raw: unknown, goal: number | null): PricingOption[] {
+  if (!Array.isArray(raw)) return [];
+
+  const seen = new Set<number>();
+  const options: PricingOption[] = [];
+  for (const item of raw) {
+    if (typeof item !== "object" || item === null) continue;
+    const { price_eur, billing, rationale } = item as Record<string, unknown>;
+    const price = typeof price_eur === "number" ? Math.round(price_eur * 100) / 100 : NaN;
+    if (!Number.isFinite(price) || price <= 0 || price > 10000 || seen.has(price)) continue;
+    seen.add(price);
+    options.push({
+      price_eur: price,
+      billing: billing === "unique" ? "unique" : "mensuel",
+      clients: goal ? Math.max(1, Math.round(goal / price)) : null,
+      rationale: typeof rationale === "string" ? rationale.trim().slice(0, 400) : "",
+    });
+  }
+  return options.sort((a, b) => a.price_eur - b.price_eur).slice(0, 3);
 }
