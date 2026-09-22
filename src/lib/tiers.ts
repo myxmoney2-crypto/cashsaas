@@ -3,9 +3,6 @@ import type { Tier } from "./types";
 export type TierConfig = {
   id: Tier;
   name: string;
-  /** Prix mensuel réel, en euros (doit correspondre au prix Stripe). */
-  price: number;
-  stripePriceId: string | undefined;
   model: string;
   /**
    * Réglage de la « réflexion » du modèle pour la génération. Elle consomme le même budget de tokens que le
@@ -24,8 +21,6 @@ export const TIERS: Record<Tier, TierConfig> = {
   starter: {
     id: "starter",
     name: "Starter",
-    price: 14.9,
-    stripePriceId: process.env.STRIPE_PRICE_STARTER,
     model: "claude-haiku-4-5-20251001",
     tuning: {},
     regenerationsPerMonth: 1,
@@ -34,8 +29,6 @@ export const TIERS: Record<Tier, TierConfig> = {
   pro: {
     id: "pro",
     name: "Pro",
-    price: 29.9,
-    stripePriceId: process.env.STRIPE_PRICE_PRO,
     model: "claude-sonnet-5",
     tuning: { thinking: "disabled" },
     regenerationsPerMonth: 3,
@@ -44,8 +37,6 @@ export const TIERS: Record<Tier, TierConfig> = {
   premium: {
     id: "premium",
     name: "Premium",
-    price: 59.9,
-    stripePriceId: process.env.STRIPE_PRICE_PREMIUM,
     model: "claude-opus-5",
     tuning: { effort: "medium" },
     regenerationsPerMonth: 10,
@@ -67,10 +58,9 @@ export function formatEuros(amount: number): string {
   return `${amount.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`;
 }
 
-/** Équivalent quotidien réel du prix mensuel : prix × 12 mois ÷ 365 jours, arrondi au centime. */
-/** Prix par jour en euros, ex. « 0,41 € » (affiché en grand sur /pricing, avec « / jour » à côté). */
-export function perDayAmount(monthlyPrice: number): string {
-  const cents = Math.round(((monthlyPrice * 12) / 365) * 100);
+/** Prix par jour en euros, ex. « 0,41 € », pour un montant total couvrant `days` jours. */
+export function perDayFromTotal(totalAmount: number, days: number): string {
+  const cents = Math.round((totalAmount / days) * 100);
   return `${(cents / 100).toLocaleString("fr-FR", { minimumFractionDigits: 2 })} €`;
 }
 
@@ -107,9 +97,80 @@ export function extraDeliverables(tier: Tier): string[] {
   return [];
 }
 
+// ---------- Tarification : 3 paliers × 3 durées × promo/plein tarif (18 prix Stripe) ----------
+
+export type Duration = 1 | 3 | 12;
+
+/** `days` = durée réelle approximative couverte par ce palier, pour calculer un prix par jour honnête. */
+export const DURATIONS: { id: Duration; label: string; days: number }[] = [
+  { id: 1, label: "1 mois", days: 30 },
+  { id: 3, label: "3 mois", days: 91 },
+  { id: 12, label: "12 mois", days: 365 },
+];
+
+type PriceEntry = { amount: number; priceId: string | undefined };
+type DurationPrices = Record<Duration, PriceEntry>;
+
+/**
+ * L'offre de lancement (« promo ») est le tarif normal affiché sur le site tant que le minuteur de
+ * 10 minutes n'est pas expiré (voir lib/promo.ts) ; passé ce délai, le plein tarif s'applique — y
+ * compris si le paiement a lieu après coup (vérifié côté serveur dans pricing/actions.ts, jamais
+ * seulement côté client). Les Price ID viennent des variables d'environnement, jamais codés en dur ici.
+ */
+export const PRICING: Record<Tier, { promo: DurationPrices; full: DurationPrices }> = {
+  starter: {
+    promo: {
+      1: { amount: 14.9, priceId: process.env.STRIPE_PRICE_STARTER_1M_PROMO },
+      3: { amount: 29.9, priceId: process.env.STRIPE_PRICE_STARTER_3M_PROMO },
+      12: { amount: 89.9, priceId: process.env.STRIPE_PRICE_STARTER_12M_PROMO },
+    },
+    full: {
+      1: { amount: 29.8, priceId: process.env.STRIPE_PRICE_STARTER_1M_FULL },
+      3: { amount: 59.8, priceId: process.env.STRIPE_PRICE_STARTER_3M_FULL },
+      12: { amount: 179.8, priceId: process.env.STRIPE_PRICE_STARTER_12M_FULL },
+    },
+  },
+  pro: {
+    promo: {
+      1: { amount: 29.9, priceId: process.env.STRIPE_PRICE_PRO_1M_PROMO },
+      3: { amount: 59.9, priceId: process.env.STRIPE_PRICE_PRO_3M_PROMO },
+      12: { amount: 179.9, priceId: process.env.STRIPE_PRICE_PRO_12M_PROMO },
+    },
+    full: {
+      1: { amount: 59.8, priceId: process.env.STRIPE_PRICE_PRO_1M_FULL },
+      3: { amount: 119.8, priceId: process.env.STRIPE_PRICE_PRO_3M_FULL },
+      12: { amount: 359.8, priceId: process.env.STRIPE_PRICE_PRO_12M_FULL },
+    },
+  },
+  premium: {
+    promo: {
+      1: { amount: 44.9, priceId: process.env.STRIPE_PRICE_PREMIUM_1M_PROMO },
+      3: { amount: 89.9, priceId: process.env.STRIPE_PRICE_PREMIUM_3M_PROMO },
+      12: { amount: 269.9, priceId: process.env.STRIPE_PRICE_PREMIUM_12M_PROMO },
+    },
+    full: {
+      1: { amount: 89.8, priceId: process.env.STRIPE_PRICE_PREMIUM_1M_FULL },
+      3: { amount: 179.8, priceId: process.env.STRIPE_PRICE_PREMIUM_3M_FULL },
+      12: { amount: 539.8, priceId: process.env.STRIPE_PRICE_PREMIUM_12M_FULL },
+    },
+  },
+};
+
+export function amountFor(tier: Tier, duration: Duration, promo: boolean): number {
+  return PRICING[tier][promo ? "promo" : "full"][duration].amount;
+}
+
+export function priceIdFor(tier: Tier, duration: Duration, promo: boolean): string | undefined {
+  return PRICING[tier][promo ? "promo" : "full"][duration].priceId;
+}
+
+/** Utilisé par le webhook Stripe (renouvellement, changement de palier) : la durée n'importe pas ici. */
 export function tierFromPriceId(priceId: string): Tier | null {
   for (const tier of TIER_ORDER) {
-    if (TIERS[tier].stripePriceId === priceId) return tier;
+    const { promo, full } = PRICING[tier];
+    for (const { id: duration } of DURATIONS) {
+      if (promo[duration].priceId === priceId || full[duration].priceId === priceId) return tier;
+    }
   }
   return null;
 }

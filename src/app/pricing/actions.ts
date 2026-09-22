@@ -8,8 +8,14 @@ import { getStripe } from "@/lib/stripe";
 import { createPendingGeneration, runGeneration } from "@/lib/generation";
 import { parseAnswers } from "@/lib/answers";
 import type { Answers } from "@/lib/questionnaire";
-import { TIERS } from "@/lib/tiers";
+import { getPromoState } from "@/lib/promo";
+import { TIERS, type Duration, priceIdFor } from "@/lib/tiers";
 import type { Tier } from "@/lib/types";
+
+function parseDuration(value: FormDataEntryValue | null): Duration {
+  const n = Number(value);
+  return n === 3 || n === 12 ? n : 1;
+}
 
 type Mode = "signup" | "login";
 type Service = ReturnType<typeof createServiceRoleClient>;
@@ -47,6 +53,7 @@ function stripeOrFail(): Stripe {
 export async function startCheckout(formData: FormData) {
   const tier = String(formData.get("tier") ?? "") as Tier;
   if (!Object.hasOwn(TIERS, tier)) fail("Palier inconnu.");
+  const duration = parseDuration(formData.get("duration"));
 
   const mode: Mode = formData.get("mode") === "login" ? "login" : "signup";
   const answers = parseAnswers(formData.get("answers"));
@@ -140,8 +147,12 @@ export async function startCheckout(formData: FormData) {
   // Déjà abonné : pas de deuxième abonnement.
   if (profile?.subscription_status === "active") redirect("/dashboard");
 
-  const config = TIERS[tier];
-  if (!config.stripePriceId) {
+  // Revérifié ici avec l'heure du SERVEUR, jamais avec ce que l'affichage du navigateur pouvait montrer :
+  // si le minuteur est expiré au moment du clic, le plein tarif s'applique automatiquement, même si la
+  // page affichée n'a pas encore basculé visuellement.
+  const promo = await getPromoState();
+  const priceId = priceIdFor(tier, duration, promo.active);
+  if (!priceId) {
     fail("Ce palier n'est pas encore configuré (STRIPE_PRICE_* manquant).");
   }
   const stripe = stripeOrFail();
@@ -170,11 +181,11 @@ export async function startCheckout(formData: FormData) {
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
       customer: customerId,
-      line_items: [{ price: config.stripePriceId, quantity: 1 }],
+      line_items: [{ price: priceId, quantity: 1 }],
       success_url: `${siteUrl}/dashboard?checkout=success`,
       cancel_url: `${siteUrl}/pricing?checkout=canceled`,
-      metadata: { user_id: userId, tier, ...consentProof },
-      subscription_data: { metadata: { user_id: userId, tier, ...consentProof } },
+      metadata: { user_id: userId, tier, duration: String(duration), ...consentProof },
+      subscription_data: { metadata: { user_id: userId, tier, duration: String(duration), ...consentProof } },
     });
     checkoutUrl = session.url;
   } catch (err) {

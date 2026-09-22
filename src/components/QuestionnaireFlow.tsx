@@ -16,6 +16,7 @@ import { getValidation } from "@/lib/validations";
 import { saveStoredAnswers } from "@/lib/stored-answers";
 import type { QuestionnaireAnswers } from "@/lib/types";
 import { FunnelSlider } from "@/components/FunnelSlider";
+import { startPromoTimer } from "@/app/questionnaire/actions";
 
 const inputClass =
   "w-full bg-surface border border-white/10 rounded-2xl px-5 py-4 text-foreground outline-none focus:border-accent";
@@ -223,7 +224,7 @@ export function QuestionnaireFlow({
   const answered = isAnswered(answer);
   const validation = answered ? getValidation(question, answer, answers, seed) : null;
 
-  function goNext() {
+  async function goNext() {
     if (!isLast) {
       // Les questions d'avant la simulation sont répondues : on la montre, puis on reprend pour les dernières.
       if (index === questions.length - TAIL_QUESTIONS - 1 && !isSimulationDone(answers)) {
@@ -233,6 +234,14 @@ export function QuestionnaireFlow({
       }
       setIndex((i) => i + 1);
       return;
+    }
+    // Fin réelle du questionnaire : démarre le minuteur de l'offre de lancement (10 min, lib/promo.ts)
+    // avant de partir, pour qu'il soit déjà actif à l'arrivée sur /pricing. Non bloquant en cas d'échec :
+    // une promo ratée ne doit jamais empêcher quelqu'un de continuer.
+    try {
+      await startPromoTimer();
+    } catch {
+      // ignoré : voir commentaire ci-dessus
     }
     // Pas de compte à ce stade : on garde les réponses dans le navigateur, puis le paywall crée le compte
     // et encaisse. La simulation est normalement déjà passée (avant les dernières questions).

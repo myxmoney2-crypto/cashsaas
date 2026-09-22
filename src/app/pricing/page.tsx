@@ -2,13 +2,16 @@ import { redirect } from "next/navigation";
 import { PricingForm } from "@/components/PricingForm";
 import { SectionLabel } from "@/components/SectionLabel";
 import { createClient } from "@/lib/supabase/server";
+import { getPromoState } from "@/lib/promo";
 import {
   DELIVERABLES,
+  DURATIONS,
   TIERS,
   TIER_ORDER,
+  amountFor,
   extraDeliverables,
   formatEuros,
-  perDayAmount,
+  perDayFromTotal,
   regenerationsLabel,
 } from "@/lib/tiers";
 
@@ -46,16 +49,33 @@ export default async function PricingPage(props: PageProps<"/pricing">) {
     hasServerAnswers = Boolean(count);
   }
 
+  // Calculé avec l'heure du serveur (lib/promo.ts) : jamais fiable côté client seul, revérifié au paiement.
+  const promo = await getPromoState();
+
   const tiers = TIER_ORDER.map((id) => {
     const tier = TIERS[id];
+    const prices = Object.fromEntries(
+      DURATIONS.map(({ id: duration, days }) => [
+        duration,
+        {
+          promoAmount: formatEuros(amountFor(id, duration, true)),
+          fullAmount: formatEuros(amountFor(id, duration, false)),
+          promoPerDay: perDayFromTotal(amountFor(id, duration, true), days),
+          fullPerDay: perDayFromTotal(amountFor(id, duration, false), days),
+        },
+      ])
+    ) as Record<
+      (typeof DURATIONS)[number]["id"],
+      { promoAmount: string; fullAmount: string; promoPerDay: string; fullPerDay: string }
+    >;
+
     return {
       id,
       name: tier.name,
       tagline: tier.tagline,
-      price: formatEuros(tier.price),
-      perDay: perDayAmount(tier.price),
       generations: regenerationsLabel(tier.regenerationsPerMonth),
       extra: extraDeliverables(id),
+      prices,
     };
   });
 
@@ -81,6 +101,9 @@ export default async function PricingPage(props: PageProps<"/pricing">) {
 
         <PricingForm
           tiers={tiers}
+          durations={DURATIONS}
+          promoActive={promo.active}
+          promoRemainingMs={promo.remainingMs}
           deliverables={DELIVERABLES}
           email={user?.email ?? null}
           isAdmin={isAdmin}
