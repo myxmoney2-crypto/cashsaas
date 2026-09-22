@@ -170,13 +170,15 @@ export function PricingForm({
                 {tier.tagline}
               </div>
               <div className="font-display text-xl font-semibold text-foreground">{tier.name}</div>
-              <div className="flex items-baseline gap-1.5 mt-3">
-                <span className="font-display text-[44px] leading-none font-semibold text-foreground">
-                  {tier.price}
+              <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-2 mt-3">
+                <span className="text-sm text-muted-2 pb-1.5 whitespace-nowrap">{tier.price} / mois</span>
+                <span className="flex items-baseline gap-1.5 whitespace-nowrap">
+                  <span className="font-display text-[40px] leading-none font-semibold text-foreground">
+                    {tier.perDay}
+                  </span>
+                  <span className="text-sm text-muted-2">/ jour</span>
                 </span>
-                <span className="text-sm text-muted-2">/ mois</span>
               </div>
-              <div className="text-sm text-foreground mt-2">soit environ {tier.perDay}</div>
               <div className="text-xs text-muted mt-1">Abonnement mensuel, résiliable à tout moment depuis ton tableau de bord</div>
             </div>
 

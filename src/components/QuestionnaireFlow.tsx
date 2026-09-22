@@ -33,20 +33,31 @@ function ChoiceInput({
 }) {
   const choices = question.choices!;
   const text = typeof value === "string" ? value : "";
-  const selected = question.multi ? text.split(", ").filter(Boolean) : [];
+  const parts = text.split(", ").filter(Boolean);
+  // Avec plusieurs choix : les cases cochées, plus le texte libre de « Autre » (ce qui n'est pas un choix).
+  const selected = question.multi ? parts.filter((c) => choices.includes(c)) : [];
+  const freeText = question.multi ? parts.filter((c) => !choices.includes(c)).join(", ") : text;
   const [otherOpen, setOtherOpen] = useState(
-    Boolean(question.allowOther) && text !== "" && !choices.includes(text)
+    Boolean(question.allowOther) && freeText !== "" && (question.multi || !choices.includes(text))
   );
+
+  // La réponse est stockée jointe par ", " : on retire les virgules du texte libre pour ne pas le scinder.
+  // (pas de trim ici : ce texte est celui du champ en cours de saisie, les espaces de fin doivent rester)
+  const compose = (picked: string[], other: string) => {
+    const free = other.replace(/,/g, " ");
+    return [...choices.filter((c) => picked.includes(c)), ...(free.trim() ? [free] : [])].join(", ");
+  };
 
   function toggleMulti(choice: string) {
     let next: string[];
     if (choice === question.exclusive) {
       next = selected.includes(choice) ? [] : [choice];
+      if (next.length) setOtherOpen(false);
     } else {
       const others = selected.filter((c) => c !== question.exclusive);
       next = others.includes(choice) ? others.filter((c) => c !== choice) : [...others, choice];
     }
-    onChange(choices.filter((c) => next.includes(c)).join(", "));
+    onChange(compose(next, next.includes(question.exclusive ?? "") ? "" : freeText));
   }
 
   function pick(choice: string) {
@@ -58,6 +69,23 @@ function ChoiceInput({
     onChange(choice);
   }
 
+  function toggleOther() {
+    if (question.multi) {
+      if (otherOpen) {
+        setOtherOpen(false);
+        onChange(compose(selected, ""));
+      } else {
+        setOtherOpen(true);
+        onChange(compose(selected.filter((c) => c !== question.exclusive), freeText));
+      }
+      return;
+    }
+    if (!otherOpen) {
+      setOtherOpen(true);
+      onChange("");
+    }
+  }
+
   const buttonClass = (active: boolean) =>
     `text-left px-5 py-4 rounded-2xl border transition-colors ${
       active
@@ -65,7 +93,8 @@ function ChoiceInput({
         : "border-white/10 bg-surface text-muted hover:border-white/20"
     }`;
 
-  const many = choices.length + (question.allowOther ? 1 : 0) >= 6 && !question.multi;
+  const count = choices.length + (question.allowOther ? 1 : 0);
+  const many = question.multi ? count >= 8 : count >= 6;
 
   return (
     <div className="flex flex-col gap-3">
@@ -85,17 +114,7 @@ function ChoiceInput({
           );
         })}
         {question.allowOther && (
-          <button
-            type="button"
-            aria-pressed={otherOpen}
-            onClick={() => {
-              if (!otherOpen) {
-                setOtherOpen(true);
-                onChange("");
-              }
-            }}
-            className={buttonClass(otherOpen)}
-          >
+          <button type="button" aria-pressed={otherOpen} onClick={toggleOther} className={buttonClass(otherOpen)}>
             Autre
           </button>
         )}
@@ -103,10 +122,12 @@ function ChoiceInput({
       {otherOpen && (
         <input
           type="text"
-          value={text}
-          onChange={(e) => onChange(e.target.value)}
+          value={freeText}
+          onChange={(e) =>
+            onChange(question.multi ? compose(selected, e.target.value) : e.target.value)
+          }
           placeholder="Précise en quelques mots"
-          aria-label={`${question.prompt} — précision`}
+          aria-label={`${question.prompt} (précision)`}
           autoFocus
           className={inputClass}
         />

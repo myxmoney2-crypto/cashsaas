@@ -7,7 +7,7 @@ import {
   TIERS,
   TIER_ORDER,
   formatEuros,
-  perDayLabel,
+  perDayAmount,
   regenerationsLabel,
 } from "@/lib/tiers";
 
@@ -52,7 +52,7 @@ export default async function PricingPage(props: PageProps<"/pricing">) {
       name: tier.name,
       tagline: tier.tagline,
       price: formatEuros(tier.price),
-      perDay: perDayLabel(tier.price),
+      perDay: perDayAmount(tier.price),
       generations: regenerationsLabel(tier.regenerationsPerMonth),
     };
   });

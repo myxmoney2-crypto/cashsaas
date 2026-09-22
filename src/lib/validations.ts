@@ -31,15 +31,27 @@ function hash(input: string): number {
 
 const euro = (n: number) => `${n.toLocaleString("fr-FR")} €`;
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
-const truncate = (s: string, max = 50) => (s.length > max ? `${s.slice(0, max).trim()}…` : s);
+const truncate = (s: string, max = 50) =>
+  s.length > max ? `${s.slice(0, max).trim()}…` : s;
 
 // « Une newsletter » → « une newsletter », mais « Instagram » reste tel quel.
-const label = (s: string) => (/^(Un|Une)\s/.test(s) ? s.charAt(0).toLowerCase() + s.slice(1) : s);
+const label = (s: string) =>
+  /^(Un|Une)\s/.test(s) ? s.charAt(0).toLowerCase() + s.slice(1) : s;
 
 function joinList(items: string[]): string {
   if (items.length <= 1) return items[0] ?? "";
   return `${items.slice(0, -1).join(", ")} et ${items[items.length - 1]}`;
 }
+
+// Question à choix multiples : une seule sélection garde sa règle habituelle, plusieurs en ont une dédiée.
+const multi =
+  (single: Rule, several: (ctx: Ctx, items: string[]) => string): Rule =>
+  (ctx) => {
+    const items = ctx.answer.split(", ").filter(Boolean);
+    return items.length > 1
+      ? several(ctx, items)
+      : single({ ...ctx, answer: items[0] ?? ctx.answer });
+  };
 
 // variants[i] = variantes pour question.choices[i]
 const byChoice =
@@ -49,7 +61,10 @@ const byChoice =
     return other ? other(ctx) : FALLBACK;
   };
 
-const CURRENT_INCOME = QUESTIONS.find((q) => q.id === "current_income")!.choices!;
+const MOTIVATION = QUESTIONS.find((q) => q.id === "motivation")!.choices!;
+const CURRENT_INCOME = QUESTIONS.find(
+  (q) => q.id === "current_income",
+)!.choices!;
 const CURRENT_INCOME_SHORT = [
   "zéro revenu",
   "moins de 1 000 € par mois",
@@ -87,25 +102,44 @@ const RULES: Record<string, Rule> = {
     ],
   ]),
 
-  motivation: byChoice([
-    [
-      "Viser des résultats concrets, c'est un bon moteur — on va construire quelque chose de mesurable.",
-      "L'argent comme objectif, ça clarifie tout : on cherchera l'idée qui rapporte, pas seulement celle qui plaît.",
-    ],
-    [
-      "Partir d'une passion, c'est ce qui donne l'énergie de tenir quand c'est moins facile.",
-      "Quand un projet te parle vraiment, la régularité vient beaucoup plus naturellement.",
-      "Cette motivation-là, c'est exactement celle qui pousse les gens à tenir dans la durée.",
-    ],
-    [
-      "La liberté comme moteur, c'est solide : on ira chercher un modèle qui te laisse la main sur ton temps.",
-      "Chercher l'indépendance, ça oriente vers des projets simples à faire tourner seul.",
-    ],
-    [
-      "Cette motivation-là, c'est exactement celle qui pousse les gens à tenir dans la durée.",
-      "Avoir envie de se prouver quelque chose, c'est un moteur qui ne s'éteint pas au premier obstacle.",
-    ],
-  ]),
+  motivation: multi(
+    byChoice([
+      [
+        "Viser des résultats concrets, c'est un bon moteur — on va construire quelque chose de mesurable.",
+        "L'argent comme objectif, ça clarifie tout : on cherchera l'idée qui rapporte, pas seulement celle qui plaît.",
+      ],
+      [
+        "Partir d'une passion, c'est ce qui donne l'énergie de tenir quand c'est moins facile.",
+        "Quand un projet te parle vraiment, la régularité vient beaucoup plus naturellement.",
+        "Cette motivation-là, c'est exactement celle qui pousse les gens à tenir dans la durée.",
+      ],
+      [
+        "La liberté comme moteur, c'est solide : on ira chercher un modèle qui te laisse la main sur ton temps.",
+        "Chercher l'indépendance, ça oriente vers des projets simples à faire tourner seul.",
+      ],
+      [
+        "Cette motivation-là, c'est exactement celle qui pousse les gens à tenir dans la durée.",
+        "Avoir envie de se prouver quelque chose, c'est un moteur qui ne s'éteint pas au premier obstacle.",
+      ],
+    ]),
+    (ctx, items) => {
+      const MOTIVATION_SHORT = [
+        "l'argent",
+        "une passion",
+        "la liberté",
+        "l'envie de te prouver quelque chose",
+      ];
+      const names = items.map(
+        (item) =>
+          MOTIVATION_SHORT[MOTIVATION.indexOf(item)] ?? item.toLowerCase(),
+      );
+      const all = joinList(names);
+      return ctx.pick([
+        `${cap(all)} : plusieurs moteurs à la fois, c'est ce qui aide à tenir quand un seul s'essouffle.`,
+        `Avec ${all} comme moteurs, on cherchera une idée qui coche plusieurs de ces cases.`,
+      ]);
+    },
+  ),
 
   current_income: byChoice([
     [
@@ -159,29 +193,43 @@ const RULES: Record<string, Rule> = {
                 `Viser ${goal} par mois, ça se construit sur la durée — on va le découper en jalons mesurables.`,
               ];
 
-    const currentIndex = CURRENT_INCOME.indexOf(String(ctx.answers.current_income ?? ""));
+    const currentIndex = CURRENT_INCOME.indexOf(
+      String(ctx.answers.current_income ?? ""),
+    );
     if (currentIndex >= 0) {
       options.push(
-        `Partir de ${CURRENT_INCOME_SHORT[currentIndex]} pour viser ${goal} par mois, ça se construit par paliers, pas d'un coup.`
+        `Partir de ${CURRENT_INCOME_SHORT[currentIndex]} pour viser ${goal} par mois, ça se construit par paliers, pas d'un coup.`,
       );
     }
     return ctx.pick(options);
   },
 
-  passion: (ctx) => {
-    if (ctx.index >= 0) {
+  passion: multi(
+    (ctx) => {
+      if (ctx.index >= 0) {
+        return ctx.pick([
+          `${ctx.answer} : un domaine où il y a de vraies opportunités en ce moment, bon choix.`,
+          `Partir de « ${ctx.answer.toLowerCase()} », c'est une base solide pour ancrer ton idée.`,
+          "Cette niche a un vrai potentiel en ce moment, bon choix.",
+        ]);
+      }
+      const text = truncate(ctx.answer);
       return ctx.pick([
-        `${ctx.answer} : un domaine où il y a de vraies opportunités en ce moment, bon choix.`,
-        `Partir de « ${ctx.answer.toLowerCase()} », c'est une base solide pour ancrer ton idée.`,
-        "Cette niche a un vrai potentiel en ce moment, bon choix.",
+        `« ${text} » : une niche précise, c'est souvent ce qui permet de se démarquer.`,
+        `« ${text} » : on va ancrer ton idée là-dedans, c'est un bon point de départ.`,
       ]);
-    }
-    const text = truncate(ctx.answer);
-    return ctx.pick([
-      `« ${text} » : une niche précise, c'est souvent ce qui permet de se démarquer.`,
-      `« ${text} » : on va ancrer ton idée là-dedans, c'est un bon point de départ.`,
-    ]);
-  },
+    },
+    (ctx, items) => {
+      // Guillemets : les choix contiennent eux-mêmes « et », sans eux la liste serait illisible.
+      const all = joinList(
+        items.map((item) => `« ${truncate(item.toLowerCase(), 30)} »`),
+      );
+      return ctx.pick([
+        `${cap(all)} : plusieurs univers, ça donne plus de matière pour trouver une idée originale.`,
+        `Croiser ${all}, c'est souvent là que naissent les niches qui se démarquent.`,
+      ]);
+    },
+  ),
 
   profitable_uninterested: byChoice([
     [
@@ -241,25 +289,25 @@ const RULES: Record<string, Rule> = {
     if (/argent|budget|cher|co[uû]t|financ/.test(t)) {
       themed.push(
         "Le budget, ça se planifie : on visera un démarrage léger cette fois.",
-        "Manquer de moyens, ça arrive souvent — on choisira un lancement qui coûte peu."
+        "Manquer de moyens, ça arrive souvent — on choisira un lancement qui coûte peu.",
       );
     }
     if (/temps|fatigu|motivation|abandon|l[âa]ch|arr[êe]t/.test(t)) {
       themed.push(
         "Tenir dans la durée, c'est le vrai défi : le plan de 30 jours est là pour ça.",
-        "Perdre le rythme, ça se prévient : on cadrera des petites étapes régulières."
+        "Perdre le rythme, ça se prévient : on cadrera des petites étapes régulières.",
       );
     }
     if (/client|vente|vendre|audience|visib|abonn|personne/.test(t)) {
       themed.push(
         "Trouver du monde, c'est souvent là que ça coince : le plan d'acquisition va y répondre.",
-        "Manquer de visibilité, ça se travaille : on y consacrera une vraie part du plan."
+        "Manquer de visibilité, ça se travaille : on y consacrera une vraie part du plan.",
       );
     }
     if (/technique|code|site|d[ée]velopp|outil|bug/.test(t)) {
       themed.push(
         "La technique peut freiner : c'est pour ça qu'on te fournit un code déjà prêt.",
-        "Côté technique, tu n'auras pas à repartir de zéro : le code est déjà écrit."
+        "Côté technique, tu n'auras pas à repartir de zéro : le code est déjà écrit.",
       );
     }
     return ctx.pick(
@@ -269,7 +317,7 @@ const RULES: Record<string, Rule> = {
             "L'expérience compte, même quand ça a pas marché — on apprend de ça.",
             "Merci d'en parler : c'est précisément ce qu'on va éviter de reproduire.",
             "Ce que tu as appris là va servir pour la suite.",
-          ]
+          ],
     );
   },
 
@@ -371,9 +419,13 @@ const RULES: Record<string, Rule> = {
 
     if (ctx.index <= 2) {
       if (ctx.answers.current_situation === "Salarié") {
-        variants.push("En parallèle de ton emploi, ce rythme est tenable si tu restes régulier.");
+        variants.push(
+          "En parallèle de ton emploi, ce rythme est tenable si tu restes régulier.",
+        );
       } else if (ctx.answers.current_situation === "Étudiant") {
-        variants.push("Entre tes études et le projet, ce rythme reste raisonnable : l'essentiel, c'est la régularité.");
+        variants.push(
+          "Entre tes études et le projet, ce rythme reste raisonnable : l'essentiel, c'est la régularité.",
+        );
       }
     }
     return ctx.pick(variants);
@@ -465,64 +517,86 @@ const RULES: Record<string, Rule> = {
     ],
   ]),
 
-  would_quit_reason: byChoice(
-    [
+  would_quit_reason: multi(
+    byChoice(
       [
-        "Le manque de résultats rapides : on prévoira des petites victoires dès les premières semaines.",
-        "Pour tenir sans résultat immédiat, on découpera le plan en jalons visibles.",
+        [
+          "Le manque de résultats rapides : on prévoira des petites victoires dès les premières semaines.",
+          "Pour tenir sans résultat immédiat, on découpera le plan en jalons visibles.",
+        ],
+        [
+          "Le manque de temps : on choisira une idée qui reste tenable même dans les semaines chargées.",
+          "Bien noté, le plan restera léger pour survivre aux semaines difficiles.",
+        ],
+        [
+          "Le manque d'argent : on gardera les coûts au minimum tant que ça ne rapporte pas.",
+          "Bien noté, on privilégiera des outils gratuits pour limiter la pression financière.",
+        ],
+        [
+          "La motivation, ça se protège avec un plan clair et de petits objectifs — c'est ce qu'on va te donner.",
+          "Bien noté : des étapes courtes et visibles aident beaucoup à garder l'élan.",
+        ],
+        [
+          "Le doute, c'est normal au début : le plan avance par petites étapes qui se valident une à une.",
+          "Bien noté, on te donnera assez de repères pour avancer avec confiance.",
+        ],
       ],
-      [
-        "Le manque de temps : on choisira une idée qui reste tenable même dans les semaines chargées.",
-        "Bien noté, le plan restera léger pour survivre aux semaines difficiles.",
-      ],
-      [
-        "Le manque d'argent : on gardera les coûts au minimum tant que ça ne rapporte pas.",
-        "Bien noté, on privilégiera des outils gratuits pour limiter la pression financière.",
-      ],
-      [
-        "La motivation, ça se protège avec un plan clair et de petits objectifs — c'est ce qu'on va te donner.",
-        "Bien noté : des étapes courtes et visibles aident beaucoup à garder l'élan.",
-      ],
-      [
-        "Le doute, c'est normal au début : le plan avance par petites étapes qui se valident une à une.",
-        "Bien noté, on te donnera assez de repères pour avancer avec confiance.",
-      ],
-    ],
-    (ctx) =>
-      ctx.pick([
-        `« ${truncate(ctx.answer)} » : bien noté, on prévoira des garde-fous là-dessus.`,
-        "Merci pour cette franchise, ça nous aide à prévoir des garde-fous.",
-      ])
+      (ctx) =>
+        ctx.pick([
+          `« ${truncate(ctx.answer)} » : bien noté, on prévoira des garde-fous là-dessus.`,
+          "Merci pour cette franchise, ça nous aide à prévoir des garde-fous.",
+        ]),
+    ),
+    (ctx, items) => {
+      const all = joinList(
+        items.map((item) => `« ${truncate(item.toLowerCase(), 30)} »`),
+      );
+      return ctx.pick([
+        `${cap(all)} : plusieurs risques identifiés d'un coup, on prévoira des garde-fous pour chacun.`,
+        `Avec ${all} en tête, on construira un plan qui protège contre ces risques-là.`,
+      ]);
+    },
   ),
 
-  time_constraints: byChoice(
-    [
+  time_constraints: multi(
+    byChoice(
       [
-        "Tes études prennent de la place : on calera le plan sur tes périodes plus calmes.",
-        "Bien noté, on tiendra compte de ton emploi du temps d'étudiant.",
+        [
+          "Tes études prennent de la place : on calera le plan sur tes périodes plus calmes.",
+          "Bien noté, on tiendra compte de ton emploi du temps d'étudiant.",
+        ],
+        [
+          "Un temps plein, c'est prenant : on ira sur un plan léger, tenable après les journées de travail.",
+          "Bien noté, le plan sera pensé pour se glisser autour de ton travail.",
+        ],
+        [
+          "Ta famille compte, et le plan doit s'y adapter : on le fera flexible.",
+          "Bien noté, on prévoira un rythme souple, compatible avec la vie de famille.",
+        ],
+        [
+          "Plusieurs choses en parallèle : on gardera un plan simple pour qu'il reste tenable.",
+          "Bien noté, on visera l'essentiel pour ne pas te surcharger.",
+        ],
+        [
+          "Parfait, un emploi du temps plus libre laisse de la marge pour avancer.",
+          "Rien de particulier : on pourra avancer à un bon rythme.",
+        ],
       ],
-      [
-        "Un temps plein, c'est prenant : on ira sur un plan léger, tenable après les journées de travail.",
-        "Bien noté, le plan sera pensé pour se glisser autour de ton travail.",
-      ],
-      [
-        "Ta famille compte, et le plan doit s'y adapter : on le fera flexible.",
-        "Bien noté, on prévoira un rythme souple, compatible avec la vie de famille.",
-      ],
-      [
-        "Plusieurs choses en parallèle : on gardera un plan simple pour qu'il reste tenable.",
-        "Bien noté, on visera l'essentiel pour ne pas te surcharger.",
-      ],
-      [
-        "Parfait, un emploi du temps plus libre laisse de la marge pour avancer.",
-        "Rien de particulier : on pourra avancer à un bon rythme.",
-      ],
-    ],
-    (ctx) =>
-      ctx.pick([
-        `« ${truncate(ctx.answer)} » : on en tient compte pour que le plan reste tenable au quotidien.`,
-        "On en tient compte pour que le plan reste tenable au quotidien.",
-      ])
+      (ctx) =>
+        ctx.pick([
+          `« ${truncate(ctx.answer)} » : on en tient compte pour que le plan reste tenable au quotidien.`,
+          "On en tient compte pour que le plan reste tenable au quotidien.",
+        ]),
+    ),
+    (ctx, items) => {
+      const all = joinList(
+        items.map((item) => truncate(item.toLowerCase(), 30)),
+      );
+      return ctx.pick([
+        `Avec ${all} en parallèle, on gardera un plan simple pour qu'il reste tenable.`,
+        `${cap(all)} : plusieurs choses à la fois, le plan restera volontairement léger.`,
+      ]);
+    },
   ),
 
   tech_comfort: byChoice([
@@ -581,7 +655,7 @@ export function getValidation(
   question: Question,
   answer: string | number,
   answers: Answers,
-  seed: string
+  seed: string,
 ): string {
   const rule = RULES[question.id];
   if (!rule) return FALLBACK;

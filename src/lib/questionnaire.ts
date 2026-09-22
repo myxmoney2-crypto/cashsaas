@@ -12,7 +12,7 @@ export type Question = {
   multi?: boolean;
   /** Choix qui désélectionne tous les autres (multi uniquement). */
   exclusive?: string;
-  /** Ajoute une option « Autre » qui ouvre un champ texte. */
+  /** Ajoute une option « Autre » qui ouvre un champ texte (avec multi, sa saisie s'ajoute aux choix cochés). */
   allowOther?: boolean;
   /** La question peut rester sans réponse. */
   optional?: boolean;
@@ -44,19 +44,26 @@ export const QUESTIONS: Question[] = [
     block: 1,
     type: "choice",
     prompt: "Tu as quel âge ?",
-    choices: ["18-24 ans", "25-29 ans", "30-34 ans", "35-44 ans", "45 ans et plus"],
+    choices: [
+      "18-24 ans",
+      "25-29 ans",
+      "30-34 ans",
+      "35-44 ans",
+      "45 ans et plus",
+    ],
   },
   {
     id: "motivation",
     block: 1,
     type: "choice",
-    prompt: "Qu'est-ce qui t'anime le plus dans la vie ?",
+    prompt: "Qu'est-ce qui t'anime dans la vie ?",
     choices: [
       "Faire de l'argent avant tout",
       "Une passion précise",
       "La liberté et l'indépendance",
       "Prouver un truc à toi-même ou aux autres",
     ],
+    multi: true,
   },
   {
     id: "current_income",
@@ -95,6 +102,7 @@ export const QUESTIONS: Question[] = [
       "Voyage et lifestyle",
       "Musique, art et création",
     ],
+    multi: true,
     allowOther: true,
   },
   {
@@ -141,7 +149,8 @@ export const QUESTIONS: Question[] = [
     id: "invested_before",
     block: 2,
     type: "choice",
-    prompt: "T'as déjà investi de l'argent dans un projet avant ? Combien à peu près ?",
+    prompt:
+      "T'as déjà investi de l'argent dans un projet avant ? Combien à peu près ?",
     choices: [
       "Rien du tout",
       "Moins de 100 €",
@@ -154,7 +163,8 @@ export const QUESTIONS: Question[] = [
     id: "skills",
     block: 2,
     type: "choice",
-    prompt: "T'as des compétences particulières que tu pourrais mettre à profit ?",
+    prompt:
+      "T'as des compétences particulières que tu pourrais mettre à profit ?",
     choices: [
       "Design",
       "Code",
@@ -221,7 +231,8 @@ export const QUESTIONS: Question[] = [
     id: "timeline",
     block: 3,
     type: "choice",
-    prompt: "Sur combien de temps tu te donnes pour voir si ça marche, avant de passer à autre chose ?",
+    prompt:
+      "Sur combien de temps tu te donnes pour voir si ça marche, avant de passer à autre chose ?",
     choices: ["1 mois", "3 mois", "6 mois", "1 an", "Plus d'un an"],
   },
 
@@ -237,7 +248,8 @@ export const QUESTIONS: Question[] = [
     id: "instinct_vs_calc",
     block: 4,
     type: "choice",
-    prompt: "T'es plutôt du genre à foncer sans trop réfléchir, ou à tout calculer avant d'agir ?",
+    prompt:
+      "T'es plutôt du genre à foncer sans trop réfléchir, ou à tout calculer avant d'agir ?",
     choices: ["Je fonce", "Je calcule tout"],
   },
   {
@@ -252,6 +264,7 @@ export const QUESTIONS: Question[] = [
       "La perte de motivation",
       "Le doute sur mes compétences",
     ],
+    multi: true,
     allowOther: true,
   },
   {
@@ -267,20 +280,24 @@ export const QUESTIONS: Question[] = [
       "Un peu de tout ça",
       "Rien de particulier",
     ],
+    multi: true,
+    exclusive: "Rien de particulier",
     allowOther: true,
   },
   {
     id: "tech_comfort",
     block: 4,
     type: "choice",
-    prompt: "T'es à l'aise avec la technique/le code, ou tu préfères que tout soit simplifié au max ?",
+    prompt:
+      "T'es à l'aise avec la technique/le code, ou tu préfères que tout soit simplifié au max ?",
     choices: ["À l'aise avec la technique", "Tout simplifié au max"],
   },
   {
     id: "solo_vs_partner",
     block: 4,
     type: "choice",
-    prompt: "Tu préfères rester 100 % solo sur le projet, ou t'es ouvert à t'associer avec quelqu'un ?",
+    prompt:
+      "Tu préfères rester 100 % solo sur le projet, ou t'es ouvert à t'associer avec quelqu'un ?",
     choices: ["100 % solo", "Ouvert à m'associer"],
   },
   {
@@ -304,7 +321,8 @@ export const QUESTIONS: Question[] = [
     id: "anything_else",
     block: 4,
     type: "textarea",
-    prompt: "Y'a un truc que t'as pas pu dire dans les questions précédentes et qui compte pour toi ?",
+    prompt:
+      "Y'a un truc que t'as pas pu dire dans les questions précédentes et qui compte pour toi ?",
     placeholder: "Facultatif",
     optional: true,
   },
@@ -322,7 +340,9 @@ export function getVisibleQuestions(answers: Answers): Question[] {
 
 /** Toutes les questions posées (donc non sautées) et non facultatives ont une réponse. */
 export function isComplete(answers: Answers): boolean {
-  return getVisibleQuestions(answers).every((q) => q.optional || answers[q.id] !== undefined);
+  return getVisibleQuestions(answers).every(
+    (q) => q.optional || answers[q.id] !== undefined,
+  );
 }
 
 /** Toutes les questions d'avant la simulation ont une réponse (celles dont elle a besoin y sont). */
@@ -340,7 +360,9 @@ export function isSimulationDone(answers: Answers): boolean {
 /** Index de la première question sans réponse (ou de la dernière si tout est répondu). */
 export function firstUnansweredIndex(answers: Answers): number {
   const questions = getVisibleQuestions(answers);
-  const i = questions.findIndex((q) => answers[q.id] === undefined || answers[q.id] === "");
+  const i = questions.findIndex(
+    (q) => answers[q.id] === undefined || answers[q.id] === "",
+  );
   return i === -1 ? questions.length - 1 : i;
 }
 

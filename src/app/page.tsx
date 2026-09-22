@@ -61,8 +61,9 @@ export default function Home() {
           </Link>
         </div>
 
-        <div className="flex justify-center md:justify-end md:pr-6 py-4">
+        <div className="flex flex-col items-center md:items-end md:pr-6 py-4 gap-3">
           <PhoneMockup />
+          <p className="text-[11px] text-muted-2 m-0">Illustration</p>
         </div>
       </div>
 

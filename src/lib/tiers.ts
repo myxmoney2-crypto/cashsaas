@@ -68,11 +68,10 @@ export function formatEuros(amount: number): string {
 }
 
 /** Équivalent quotidien réel du prix mensuel : prix × 12 mois ÷ 365 jours, arrondi au centime. */
-export function perDayLabel(monthlyPrice: number): string {
+/** Prix par jour en euros, ex. « 0,41 € » (affiché en grand sur /pricing, avec « / jour » à côté). */
+export function perDayAmount(monthlyPrice: number): string {
   const cents = Math.round(((monthlyPrice * 12) / 365) * 100);
-  return cents < 100
-    ? `${cents} centimes par jour`
-    : `${(cents / 100).toLocaleString("fr-FR", { minimumFractionDigits: 2 })} € par jour`;
+  return `${(cents / 100).toLocaleString("fr-FR", { minimumFractionDigits: 2 })} €`;
 }
 
 export function regenerationsLabel(count: number): string {
