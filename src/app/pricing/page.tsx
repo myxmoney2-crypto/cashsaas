@@ -6,6 +6,7 @@ import {
   DELIVERABLES,
   TIERS,
   TIER_ORDER,
+  extraDeliverables,
   formatEuros,
   perDayAmount,
   regenerationsLabel,
@@ -54,6 +55,7 @@ export default async function PricingPage(props: PageProps<"/pricing">) {
       price: formatEuros(tier.price),
       perDay: perDayAmount(tier.price),
       generations: regenerationsLabel(tier.regenerationsPerMonth),
+      extra: extraDeliverables(id),
     };
   });
 

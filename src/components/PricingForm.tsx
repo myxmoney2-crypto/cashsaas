@@ -18,12 +18,31 @@ export type TierCard = {
   price: string;
   perDay: string;
   generations: string;
+  /** Avantages en plus de `deliverables`, propres à ce palier (voir extraDeliverables dans lib/tiers.ts). */
+  extra: string[];
 };
 
 type Mode = "signup" | "login";
 
 const inputClass =
   "bg-surface border border-white/10 rounded-xl px-4 py-3 text-foreground outline-none focus:border-accent";
+
+function CheckIcon({ className }: { className: string }) {
+  return (
+    <svg
+      viewBox="0 0 16 16"
+      className={className}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M3 8.5l3.2 3.2L13 5" />
+    </svg>
+  );
+}
 
 function TierButton({ tier, label, disabled }: { tier: string; label: string; disabled: boolean }) {
   const { pending } = useFormStatus();
@@ -189,29 +208,36 @@ export function PricingForm({
               </div>
             </div>
 
-            <div>
-              <div className="text-xs uppercase tracking-wide text-muted-2 font-semibold mb-2.5">
-                Inclus dans les 3 paliers
+            <div className="flex flex-col gap-4">
+              <div>
+                <div className="text-xs uppercase tracking-wide text-muted-2 font-semibold mb-2.5">
+                  Inclus dans les 3 paliers
+                </div>
+                <ul className="flex flex-col gap-2.5 text-sm text-muted">
+                  {deliverables.map((item) => (
+                    <li key={item} className="flex gap-2.5">
+                      <CheckIcon className="w-4 h-4 mt-0.5 shrink-0 text-accent" />
+                      <span>{item}</span>
+                    </li>
+                  ))}
+                </ul>
               </div>
-              <ul className="flex flex-col gap-2.5 text-sm text-muted">
-                {deliverables.map((item) => (
-                  <li key={item} className="flex gap-2.5">
-                    <svg
-                      viewBox="0 0 16 16"
-                      className="w-4 h-4 mt-0.5 shrink-0 text-accent"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      aria-hidden="true"
-                    >
-                      <path d="M3 8.5l3.2 3.2L13 5" />
-                    </svg>
-                    <span>{item}</span>
-                  </li>
-                ))}
-              </ul>
+
+              {tier.extra.length > 0 && (
+                <div>
+                  <div className="text-xs uppercase tracking-wide text-accent font-semibold mb-2.5">
+                    En plus avec {tier.name}
+                  </div>
+                  <ul className="flex flex-col gap-2.5 text-sm text-foreground">
+                    {tier.extra.map((item) => (
+                      <li key={item} className="flex gap-2.5">
+                        <CheckIcon className="w-4 h-4 mt-0.5 shrink-0 text-accent-2" />
+                        <span>{item}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </div>
 
             <TierButton

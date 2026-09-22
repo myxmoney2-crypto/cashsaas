@@ -57,9 +57,9 @@ export const TIERS: Record<Tier, TierConfig> = {
 export const DELIVERABLES = [
   "Une idée de SaaS personnalisée, générée à partir de ton questionnaire",
   "Le code de ton site, réellement généré (pas juste un prompt à copier)",
-  "Connexion à ton GitHub : ton propre dépôt créé à partir de notre template",
-  "Bouton « Deploy to Vercel » : mise en ligne sur ton compte en un clic",
-  "Guide pas à pas : ajout de ton code, Stripe et nom de domaine",
+  "Dépôt GitHub créé automatiquement à partir de notre template, avec ton code déjà dedans",
+  "Assistant de mise en ligne guidé, étape par étape (Supabase, Vercel)",
+  "Scénarios de tarification pour atteindre ton objectif de revenu",
   "Ton plan d'action des 30 premiers jours",
 ];
 
@@ -79,6 +79,34 @@ export function regenerationsLabel(count: number): string {
 }
 
 export const TIER_ORDER: Tier[] = ["starter", "pro", "premium"];
+
+/** Position d'un palier pour comparer « au moins tel palier » (ex. accès à la mini-formation). */
+export const TIER_RANK: Record<Tier, number> = { starter: 0, pro: 1, premium: 2 };
+
+/**
+ * Avantages supplémentaires par palier, EN PLUS de DELIVERABLES : ils s'empilent (Premium affiche les
+ * siens en plus de ceux de Pro) et reposent uniquement sur des différences réelles déjà dans le code
+ * (modèle et réglage de réflexion par palier dans TIERS, nombre de régénérations, accès à /formation).
+ * Aucune fonctionnalité pas encore construite (ex. chat support) n'y figure.
+ */
+export function extraDeliverables(tier: Tier): string[] {
+  if (tier === "pro") {
+    return [
+      "Modèle plus avancé pour une rédaction plus détaillée et approfondie",
+      `Jusqu'à ${TIERS.pro.regenerationsPerMonth} régénérations par mois pour ajuster ton résultat`,
+      "Accès à la mini-formation acquisition (comptes TikTok, clippers, budget)",
+    ];
+  }
+  if (tier === "premium") {
+    return [
+      "Le modèle le plus avancé, pour l'idée et le code les plus poussés",
+      "Réflexion la plus approfondie du modèle avant de générer ton résultat",
+      `Jusqu'à ${TIERS.premium.regenerationsPerMonth} régénérations par mois pour ajuster ton résultat`,
+      "Accès complet à la mini-formation, y compris les prochains modules ajoutés",
+    ];
+  }
+  return [];
+}
 
 export function tierFromPriceId(priceId: string): Tier | null {
   for (const tier of TIER_ORDER) {

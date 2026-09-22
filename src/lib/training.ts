@@ -6,6 +6,8 @@
  */
 
 import type { Answers } from "./questionnaire";
+import { TIER_RANK } from "./tiers";
+import type { Tier } from "./types";
 
 export type TrainingKind = "video" | "audio" | "text";
 
@@ -13,6 +15,8 @@ export type TrainingModule = {
   id: string;
   title: string;
   kind: TrainingKind;
+  /** Palier minimum requis pour voir ce module (voir /pricing : « accès à la mini-formation »). */
+  minTier: Tier;
   /** Une ligne sous le titre. */
   summary?: string;
   /** Durée affichée, ex. "4 min". */
@@ -111,6 +115,7 @@ export function buildAcquisitionModule(answers: Answers | null): TrainingModule 
   return {
     id: "acquisition",
     kind: "text",
+    minTier: "pro",
     title: "Trouver tes premiers clients avec TikTok",
     summary: "Plusieurs comptes, des clippers payés au résultat, et un budget réparti sans oublier tes clés API.",
     sections: [
@@ -151,6 +156,8 @@ export function buildAcquisitionModule(answers: Answers | null): TrainingModule 
   };
 }
 
-export function getTrainingModules(answers: Answers | null): TrainingModule[] {
-  return [buildAcquisitionModule(answers), ...TRAINING_MODULES];
+/** Modules visibles pour ce palier, dans l'ordre. Starter n'a accès à aucun module pour le moment. */
+export function getTrainingModules(answers: Answers | null, tier: Tier): TrainingModule[] {
+  const all = [buildAcquisitionModule(answers), ...TRAINING_MODULES];
+  return all.filter((module) => TIER_RANK[tier] >= TIER_RANK[module.minTier]);
 }
