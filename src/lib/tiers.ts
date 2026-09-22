@@ -92,15 +92,14 @@ export const TIER_RANK: Record<Tier, number> = { starter: 0, pro: 1, premium: 2 
 export function extraDeliverables(tier: Tier): string[] {
   if (tier === "pro") {
     return [
-      "Modèle plus avancé pour une rédaction plus détaillée et approfondie",
+      "Idée et code plus détaillés, analyse plus poussée de ton marché",
       `Jusqu'à ${TIERS.pro.regenerationsPerMonth} régénérations par mois pour ajuster ton résultat`,
       "Accès à la mini-formation acquisition (comptes TikTok, clippers, budget)",
     ];
   }
   if (tier === "premium") {
     return [
-      "Le modèle le plus avancé, pour l'idée et le code les plus poussés",
-      "Réflexion la plus approfondie du modèle avant de générer ton résultat",
+      "Analyse la plus poussée de ta niche, idée et code les plus aboutis",
       `Jusqu'à ${TIERS.premium.regenerationsPerMonth} régénérations par mois pour ajuster ton résultat`,
       "Accès complet à la mini-formation, y compris les prochains modules ajoutés",
     ];
