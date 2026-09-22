@@ -121,6 +121,9 @@ export function PricingForm({
     return () => clearInterval(timer);
   }, []);
   const promoStillActive = remainingMs > 0;
+  // Repère affiché sur les 3 blocs de durée (avant que le client choisisse un palier) : Pro, le palier
+  // le plus choisi, sert d'exemple pour montrer l'effet de l'engagement sur le prix par jour.
+  const referenceTier = tiers.find((t) => t.id === "pro") ?? tiers[0];
 
   useEffect(() => {
     if (nothingToSend) router.replace("/questionnaire");
@@ -216,35 +219,64 @@ export function PricingForm({
       )}
 
       <div className="flex flex-col gap-4">
-        <div className="flex flex-wrap items-center gap-4">
-          <div className="flex gap-2" role="group" aria-label="Durée de l'abonnement">
-            {durations.map((d) => (
-              <button
-                key={d.id}
-                type="button"
-                aria-pressed={duration === d.id}
-                onClick={() => setDuration(d.id)}
-                className={`px-4 py-2 rounded-full text-sm border transition-colors ${
-                  duration === d.id
-                    ? "border-accent bg-accent/10 text-foreground"
-                    : "border-white/10 text-muted hover:border-white/20"
-                }`}
-              >
-                {d.label}
-              </button>
-            ))}
+        {promoStillActive && (
+          <div
+            role="status"
+            className="flex items-center gap-2 text-sm text-accent bg-accent/10 border border-accent/30 rounded-full px-4 py-1.5 w-fit"
+          >
+            <span>⚡ Tarif de lancement encore valable</span>
+            <span className="font-mono font-semibold tabular-nums" aria-live="off">
+              {formatCountdown(remainingMs)}
+            </span>
           </div>
+        )}
 
-          {promoStillActive && (
-            <div
-              role="status"
-              className="flex items-center gap-2 text-sm text-accent bg-accent/10 border border-accent/30 rounded-full px-4 py-1.5"
-            >
-              <span>⚡ Tarif de lancement encore valable</span>
-              <span className="font-mono font-semibold tabular-nums" aria-live="off">
-                {formatCountdown(remainingMs)}
-              </span>
-            </div>
+        <div className="flex flex-col gap-2">
+          <div
+            className="grid grid-cols-3 gap-3"
+            role="group"
+            aria-label="Durée de l'abonnement : plus tu t'engages longtemps, moins ça coûte par jour"
+          >
+            {durations.map((d) => {
+              const refPrices = referenceTier?.prices[d.id];
+              const refPerDay = refPrices
+                ? promoStillActive
+                  ? refPrices.promoPerDay
+                  : refPrices.fullPerDay
+                : null;
+              return (
+                <button
+                  key={d.id}
+                  type="button"
+                  aria-pressed={duration === d.id}
+                  onClick={() => setDuration(d.id)}
+                  className={`relative flex flex-col items-center gap-0.5 rounded-2xl border px-3 py-4 transition-colors ${
+                    duration === d.id
+                      ? "border-accent bg-accent/10"
+                      : "border-white/10 bg-surface hover:border-white/20"
+                  }`}
+                >
+                  {d.id === 3 && (
+                    <span className="absolute -top-2.5 left-1/2 -translate-x-1/2 bg-accent text-white text-[10px] font-bold uppercase tracking-wide px-2.5 py-1 rounded-full whitespace-nowrap">
+                      Le plus choisi
+                    </span>
+                  )}
+                  <span className="text-xs text-muted-2">{d.label}</span>
+                  {refPerDay && (
+                    <span className="font-display text-2xl font-semibold text-foreground leading-tight">
+                      {refPerDay}
+                    </span>
+                  )}
+                  <span className="text-[11px] text-muted-2">/ jour</span>
+                </button>
+              );
+            })}
+          </div>
+          {referenceTier && (
+            <p className="text-xs text-muted-2 m-0">
+              Prix par jour du palier {referenceTier.name}, à titre de repère : chaque palier a son propre
+              prix, affiché sur sa carte ci-dessous.
+            </p>
           )}
         </div>
 
@@ -266,18 +298,20 @@ export function PricingForm({
                   <div className="font-display text-xl font-semibold text-foreground">{tier.name}</div>
 
                   <div className="flex flex-col gap-1 mt-3">
-                    {promoStillActive && (
-                      <span className="text-sm text-muted-2 line-through decoration-red-400/80 decoration-2 w-fit">
-                        {p.fullAmount}
-                      </span>
-                    )}
                     <div className="flex items-baseline gap-1.5">
-                      <span className="font-display text-[36px] leading-none font-semibold text-foreground">
-                        {amount}
+                      <span className="font-display text-[40px] leading-none font-semibold text-foreground">
+                        {perDay}
                       </span>
-                      <span className="text-sm text-muted-2">/ {duration} mois</span>
+                      <span className="text-sm text-muted-2">/ jour</span>
                     </div>
-                    <div className="text-xs text-muted-2">soit {perDay} par jour</div>
+                    <div className="flex items-center gap-2 text-xs text-muted-2">
+                      {promoStillActive && (
+                        <span className="line-through decoration-red-400/80 decoration-2">
+                          {p.fullAmount}
+                        </span>
+                      )}
+                      <span>{amount} / {duration} mois</span>
+                    </div>
                   </div>
 
                   <div className="text-xs text-muted mt-2">
