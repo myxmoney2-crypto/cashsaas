@@ -16,6 +16,7 @@ import { getValidation } from "@/lib/validations";
 import { saveStoredAnswers } from "@/lib/stored-answers";
 import type { QuestionnaireAnswers } from "@/lib/types";
 import { FunnelSlider } from "@/components/FunnelSlider";
+import { SearchableChoiceInput } from "@/components/SearchableChoiceInput";
 import { startPromoTimer } from "@/app/questionnaire/actions";
 
 const inputClass =
@@ -148,6 +149,9 @@ function QuestionInput({
 }) {
   switch (question.type) {
     case "choice":
+      if (question.searchable) {
+        return <SearchableChoiceInput question={question} value={value} onChange={onChange} />;
+      }
       return <ChoiceInput question={question} value={value} onChange={onChange} />;
     case "slider":
       return (
@@ -291,7 +295,13 @@ export function QuestionnaireFlow({
         <h2 className="font-display font-semibold text-2xl md:text-[28px] text-foreground leading-snug">
           {question.prompt}
         </h2>
-        {question.multi && <p className="text-sm text-muted-2">Plusieurs choix possibles</p>}
+        {question.multi && (
+          <p className="text-sm text-muted-2">
+            {question.maxChoices
+              ? `Jusqu'à ${question.maxChoices} choix`
+              : "Plusieurs choix possibles"}
+          </p>
+        )}
       </div>
 
       <QuestionInput

@@ -14,6 +14,13 @@ export type Question = {
   exclusive?: string;
   /** Ajoute une option « Autre » qui ouvre un champ texte (avec multi, sa saisie s'ajoute aux choix cochés). */
   allowOther?: boolean;
+  /**
+   * Trop de choix pour une grille de boutons (ex. domaines/passions) : affiche une recherche +
+   * liste à cocher à la place. Réservé à `multi: true`.
+   */
+  searchable?: boolean;
+  /** Nombre maximum de choix cochables (multi uniquement). */
+  maxChoices?: number;
   /** La question peut rester sans réponse. */
   optional?: boolean;
   min?: number;
@@ -93,16 +100,36 @@ export const QUESTIONS: Question[] = [
     type: "choice",
     prompt: "T'as une passion ou un domaine qui te capte vraiment ?",
     choices: [
-      "Sport et bien-être",
+      "Sport",
+      "Bien-être et méditation",
       "Cuisine et alimentation",
-      "Mode et beauté",
-      "Jeux vidéo et tech",
-      "Argent et business",
-      "Éducation et développement personnel",
-      "Voyage et lifestyle",
-      "Musique, art et création",
+      "Mode",
+      "Beauté et soins",
+      "Jeux vidéo et esport",
+      "Technologie et gadgets",
+      "Argent et investissement",
+      "Immobilier",
+      "Voyage",
+      "Musique",
+      "Cinéma et séries",
+      "Lecture et littérature",
+      "Bricolage et DIY",
+      "Photo et vidéo",
+      "Art et création",
+      "Coaching et développement personnel",
+      "Éducation et pédagogie",
+      "Santé",
+      "Animaux",
+      "Automobile et moto",
+      "Parentalité et famille",
+      "Événementiel (mariages, fêtes)",
+      "Décoration et intérieur",
+      "Jardinage et plantes",
+      "Écologie et durabilité",
     ],
     multi: true,
+    searchable: true,
+    maxChoices: 5,
     allowOther: true,
   },
   {
