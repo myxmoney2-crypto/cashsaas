@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { TextPage, Todo } from "@/components/TextPage";
+import { TextPage } from "@/components/TextPage";
+
+const CONTACT_EMAIL = "cashsaas.org@gmail.com";
 
 export const metadata: Metadata = {
   title: "Conditions de remboursement — CashSaaS",
@@ -49,7 +51,7 @@ export default function RemboursementPage() {
 
       <h2>Comment faire ta demande</h2>
       <p>
-        Envoie un email à <Todo>ton adresse email de contact</Todo> depuis l’adresse de ton compte, avec
+        Envoie un email à <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a> depuis l’adresse de ton compte, avec
         pour objet « Demande de remboursement ». Indique la date de ton achat, colle les liens vers tes
         contenus publiés (au moins 10 dans les 48 heures) et précise que tu n’as généré aucune vente.
       </p>
