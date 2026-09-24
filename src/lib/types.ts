@@ -50,6 +50,12 @@ export type GenerationResult = {
   /** Absents des générations créées avant l'ajout des scénarios de prix. */
   pricing_options?: PricingOption[];
   monthly_goal_eur?: number | null;
+  /**
+   * Raisonnement de profondeur produit par l'appel « idée » (voir lib/anthropic.ts) : pas affiché
+   * pour le moment, gardé au cas où on veuille l'exposer plus tard. Absent des générations plus anciennes.
+   */
+  underlying_need?: string;
+  market_signal?: string;
 };
 
 export type GenerationStatus = "pending" | "done" | "failed";

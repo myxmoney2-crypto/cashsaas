@@ -1,17 +1,24 @@
 import type { Tier } from "./types";
 
+export type Tuning = { thinking?: "disabled"; effort?: "low" | "medium" | "high" };
+
 export type TierConfig = {
   id: Tier;
   name: string;
   model: string;
   /**
-   * Réglage de la « réflexion » du modèle pour la génération. Elle consomme le même budget de tokens que le
-   * texte écrit : sur ces modèles elle est active par défaut et peut avaler une grosse part de max_tokens.
+   * Réglage de la « réflexion » du modèle, séparé par appel (voir lib/anthropic.ts : génération en deux
+   * temps, idée puis code). Elle consomme le même budget de tokens que le texte écrit : sur ces modèles
+   * elle est active par défaut et peut avaler une grosse part de max_tokens.
    *  - thinking "disabled" : réflexion coupée (Sonnet 5) ;
    *  - effort : réflexion allégée, sans la couper (Opus 5 : la couper a un défaut connu, texte parasite dans la réponse) ;
-   *  - rien : Haiku 4.5, qui n'a pas de réflexion par défaut et rejette le paramètre d'effort.
+   *  - rien : soit la réflexion par défaut du modèle s'applique (Sonnet 5 / Opus 5 : activée), soit le
+   *    modèle n'en a pas (Haiku 4.5, qui rejette aussi le paramètre d'effort).
+   * ideaTuning laisse la réflexion la plus généreuse possible (c'est elle qui invente l'idée) ;
+   * codeTuning la coupe ou l'allège (le code a besoin du budget de tokens pour écrire, pas réfléchir).
    */
-  tuning: { thinking?: "disabled"; effort?: "low" | "medium" | "high" };
+  ideaTuning: Tuning;
+  codeTuning: Tuning;
   /** Régénérations possibles par mois, en plus de la génération faite à l'achat. */
   regenerationsPerMonth: number;
   tagline: string;
@@ -22,7 +29,8 @@ export const TIERS: Record<Tier, TierConfig> = {
     id: "starter",
     name: "Starter",
     model: "claude-haiku-4-5-20251001",
-    tuning: {},
+    ideaTuning: {},
+    codeTuning: {},
     regenerationsPerMonth: 1,
     tagline: "Pour tester l'idée",
   },
@@ -30,7 +38,8 @@ export const TIERS: Record<Tier, TierConfig> = {
     id: "pro",
     name: "Pro",
     model: "claude-sonnet-5",
-    tuning: { thinking: "disabled" },
+    ideaTuning: {}, // réflexion active par défaut : c'est elle qui doit creuser l'idée
+    codeTuning: { thinking: "disabled" },
     regenerationsPerMonth: 3,
     tagline: "Le plus populaire",
   },
@@ -38,7 +47,8 @@ export const TIERS: Record<Tier, TierConfig> = {
     id: "premium",
     name: "Premium",
     model: "claude-opus-5",
-    tuning: { effort: "medium" },
+    ideaTuning: { effort: "high" },
+    codeTuning: { effort: "medium" },
     regenerationsPerMonth: 10,
     tagline: "Le plus complet",
   },

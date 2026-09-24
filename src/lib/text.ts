@@ -27,6 +27,8 @@ export function cleanResultText(result: GenerationResult): GenerationResult {
     idea_name: stripEmDashes(result.idea_name),
     niche: stripEmDashes(result.niche),
     pitch: stripEmDashes(result.pitch),
+    ...(result.underlying_need ? { underlying_need: stripEmDashes(result.underlying_need) } : {}),
+    ...(result.market_signal ? { market_signal: stripEmDashes(result.market_signal) } : {}),
     tech_stack: toBullets(result.tech_stack).map(stripEmDashes),
     tools_recommendation: toBullets(result.tools_recommendation).map(stripEmDashes),
     acquisition_plan: (result.acquisition_plan ?? []).map((week) => ({
