@@ -4,8 +4,8 @@ import { createServiceRoleClient } from "./supabase/server";
 export const PROMO_TOKEN_COOKIE = "cs_promo_token";
 // Généreux pour couvrir le trajet questionnaire -> paiement même si la personne prend une pause ;
 // le minuteur promo lui-même (10 minutes) expire bien avant, et le jeton n'est jamais réutilisé
-// d'une visite à l'autre (voir startPromoTimer dans app/questionnaire/actions.ts), donc une durée
-// de cookie plus longue ne redonnerait aucune promo supplémentaire.
+// d'une visite à l'autre (voir app/api/promo/start/route.ts), donc une durée de cookie plus longue
+// ne redonnerait aucune promo supplémentaire.
 export const PROMO_TOKEN_MAX_AGE = 60 * 60 * 6;
 
 // Même fonction utilisée pour l'affichage (page /pricing) ET pour la vérification au moment du paiement

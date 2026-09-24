@@ -17,7 +17,6 @@ import { saveStoredAnswers } from "@/lib/stored-answers";
 import type { QuestionnaireAnswers } from "@/lib/types";
 import { FunnelSlider } from "@/components/FunnelSlider";
 import { SearchableChoiceInput } from "@/components/SearchableChoiceInput";
-import { startPromoTimer } from "@/app/questionnaire/actions";
 
 const inputClass =
   "w-full bg-surface border border-white/10 rounded-2xl px-5 py-4 text-foreground outline-none focus:border-accent";
@@ -228,30 +227,22 @@ export function QuestionnaireFlow({
   const answered = isAnswered(answer);
   const validation = answered ? getValidation(question, answer, answers, seed) : null;
 
-  async function goNext() {
-    if (!isLast) {
-      // Les questions d'avant la simulation sont répondues : on la montre, puis on reprend pour les dernières.
-      if (index === questions.length - TAIL_QUESTIONS - 1 && !isSimulationDone(answers)) {
-        saveStoredAnswers(askedAnswers());
-        router.push("/calcul");
-        return;
-      }
-      setIndex((i) => i + 1);
+  function goNext() {
+    // Les questions d'avant la simulation sont répondues : on la montre, puis on reprend pour les dernières.
+    if (index === questions.length - TAIL_QUESTIONS - 1 && !isSimulationDone(answers)) {
+      saveStoredAnswers(askedAnswers());
+      router.push("/calcul");
       return;
     }
-    // Fin réelle du questionnaire : démarre le minuteur de l'offre de lancement (10 min, lib/promo.ts)
-    // avant de partir, pour qu'il soit déjà actif à l'arrivée sur /pricing. Non bloquant en cas d'échec :
-    // une promo ratée ne doit jamais empêcher quelqu'un de continuer.
-    try {
-      await startPromoTimer();
-    } catch {
-      // ignoré : voir commentaire ci-dessus
-    }
-    // Pas de compte à ce stade : on garde les réponses dans le navigateur, puis le paywall crée le compte
-    // et encaisse. La simulation est normalement déjà passée (avant les dernières questions).
-    saveStoredAnswers(askedAnswers());
-    router.push(isSimulationDone(answers) ? "/pricing" : "/calcul");
+    setIndex((i) => i + 1);
   }
+
+  // Fin réelle du questionnaire (dernière question, bouton « Envoyer mes réponses ») : un vrai lien,
+  // pas un clic géré en JS, vers /api/promo/start — qui démarre le minuteur de l'offre de lancement
+  // (10 min, lib/promo.ts) et redirige. Le cookie est posé directement sur la réponse de redirection
+  // (comme pour la connexion GitHub), plus robuste qu'un appel séparé avant la navigation.
+  const afterLast = isSimulationDone(answers) ? "/pricing" : "/calcul";
+  const sendHref = `/api/promo/start?next=${encodeURIComponent(afterLast)}`;
 
   // On n'envoie que les questions réellement posées (pas une réponse périmée à une question sautée),
   // plus les réponses du pop-up de simulation déjà données.
@@ -327,14 +318,33 @@ export function QuestionnaireFlow({
         >
           ← Retour
         </button>
-        <button
-          type="button"
-          onClick={goNext}
-          disabled={!answered && !question.optional}
-          className="bg-accent text-white px-8 py-3.5 rounded-full font-semibold text-sm disabled:opacity-40 hover:opacity-90 transition-opacity"
-        >
-          {isLast ? "Envoyer mes réponses" : "Continuer →"}
-        </button>
+        {isLast ? (
+          answered || question.optional ? (
+            <a
+              href={sendHref}
+              onClick={() => saveStoredAnswers(askedAnswers())}
+              className="bg-accent text-white px-8 py-3.5 rounded-full font-semibold text-sm hover:opacity-90 transition-opacity inline-block text-center"
+            >
+              Envoyer mes réponses
+            </a>
+          ) : (
+            <span
+              aria-disabled="true"
+              className="bg-accent text-white px-8 py-3.5 rounded-full font-semibold text-sm opacity-40 cursor-not-allowed inline-block text-center"
+            >
+              Envoyer mes réponses
+            </span>
+          )
+        ) : (
+          <button
+            type="button"
+            onClick={goNext}
+            disabled={!answered && !question.optional}
+            className="bg-accent text-white px-8 py-3.5 rounded-full font-semibold text-sm disabled:opacity-40 hover:opacity-90 transition-opacity"
+          >
+            Continuer →
+          </button>
+        )}
       </div>
     </div>
   );
